@@ -14,7 +14,7 @@ type AuthController struct {
 	authService *service.AuthService
 }
 
-func NewUserController(authService *service.AuthService) *AuthController {
+func NewAuthController(authService *service.AuthService) *AuthController {
 	return &AuthController{
 		authService: authService,
 	}
@@ -67,6 +67,33 @@ func (a *AuthController) Register(ctx *gin.Context) {
 	})
 }
 
-func (a *AuthController) GetUser(ctx gin.Context) {
-
+func (a *AuthController) Login(ctx *gin.Context) {
+	var body dto.NewUser
+	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
+		log.Println("Error: ", err.Error())
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Error",
+			Success: false,
+			Error:   "Internal Server Error",
+		})
+		return
+	}
+	token, err := a.authService.LoginUser(ctx.Request.Context(), body)
+	if err != nil {
+		log.Println("Error: ", err.Error())
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Error",
+			Success: false,
+			Error:   "Internal Server Error",
+		})
+		return
+	}
+	log.Println("response data", token)
+	ctx.JSON(http.StatusOK, dto.Response{
+		Data: gin.H{
+			"token": token,
+		},
+		Message: "Login Success",
+		Success: true,
+	})
 }

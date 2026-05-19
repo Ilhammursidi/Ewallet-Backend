@@ -8,13 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ListUserRouter(router *gin.Engine, db *pgxpool.Pool) {
+func RegisterAuthRouter(router *gin.Engine, db *pgxpool.Pool) {
 	authRouter := router.Group("/auth")
 
 	authRepo := repository.NewAuthRepository(db)
 	authService := service.NewAuthService(authRepo)
-	authController := controller.NewUserController(authService)
+	authController := controller.NewAuthController(authService)
 
-	authRouter.GET("", authController.GetAll)
+	// authRouter.GET("", authController.GetAll)
 	authRouter.POST("/register", authController.Register)
+	authRouter.POST("/login", authController.Login)
 }

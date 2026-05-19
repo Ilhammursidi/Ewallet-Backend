@@ -53,14 +53,20 @@ func (a *AuthService) RegisterUser(ctx context.Context, user dto.NewUser) (dto.U
 	}, nil
 }
 
-func (a AuthService) GetUserProfile(ctx context.Context, id int) (dto.User, error) {
-	user, err := a.authRepo.GetUserById(ctx, id)
+func (a *AuthService) LoginUser(ctx context.Context, user dto.NewUser) (string, error) {
+	login, err := a.authRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
-		return dto.User{}, err
+		return "", err
 	}
-	return dto.User{
-		Id:         user.Id,
-		Email:      user.Email,
-		Created_at: user.Created_at,
-	}, nil
+	var hc pkg.HashConfig
+
+	if err := hc.Compare(user.Password, login.Password); err != nil {
+		return "", err
+	}
+	claims := pkg.NewClaims(login.Id, user.Email)
+	token, err := claims.GenJWT()
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
