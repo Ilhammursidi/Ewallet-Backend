@@ -10,12 +10,14 @@ import (
 )
 
 type AuthService struct {
-	authRepo *repository.AuthRepository
+	authRepo      *repository.AuthRepository
+	blacklistRepo *repository.BlacklistRepository
 }
 
-func NewAuthService(authRepo *repository.AuthRepository) *AuthService {
+func NewAuthService(authRepo *repository.AuthRepository, blacklistRepo *repository.BlacklistRepository) *AuthService {
 	return &AuthService{
-		authRepo: authRepo,
+		authRepo:      authRepo,
+		blacklistRepo: blacklistRepo,
 	}
 }
 
@@ -85,5 +87,5 @@ func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin
 }
 
 func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
-	return a.authRepo.AddToBlackList(ctx, token)
+	return a.blacklistRepo.AddToBlackList(ctx, token)
 }

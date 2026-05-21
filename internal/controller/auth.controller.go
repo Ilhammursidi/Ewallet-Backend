@@ -113,7 +113,7 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 		return
 	}
 
-	userClaims, ok := claims.(pkg.Claims)
+	userClaims, ok := claims.(*pkg.Claims)
 	log.Println("cast ok:", ok)
 	log.Println("userId:", userClaims.Id)
 	if !ok {

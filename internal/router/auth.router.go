@@ -13,12 +13,14 @@ func RegisterAuthRouter(router *gin.Engine, db *pgxpool.Pool) {
 	authRouter := router.Group("/auth")
 
 	authRepo := repository.NewAuthRepository(db)
-	authService := service.NewAuthService(authRepo)
+	blacklistRepo := repository.NewBlacklistRepository(db)
+
+	authService := service.NewAuthService(authRepo, blacklistRepo)
 	authController := controller.NewAuthController(authService)
 
 	// authRouter.GET("", authController.GetAll)
 	authRouter.POST("/register", authController.Register)
 	authRouter.POST("/login", authController.Login)
-	authRouter.PATCH("/enter-pin", middleware.VerifyToken(authRepo), authController.CreatePin)
-	authRouter.POST("/logout", middleware.VerifyToken(authRepo), authController.Logout)
+	authRouter.PATCH("/enter-pin", middleware.VerifyToken, authController.CreatePin)
+	authRouter.POST("/logout", middleware.VerifyToken, middleware.Blacklist(blacklistRepo), authController.Logout)
 }

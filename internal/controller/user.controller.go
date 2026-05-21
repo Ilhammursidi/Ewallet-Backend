@@ -23,7 +23,7 @@ func NewUserController(userService *service.UserService) *UserController {
 
 func (u *UserController) GetProfile(ctx *gin.Context) {
 	token, _ := ctx.Get("claims")
-	claims := token.(pkg.Claims)
+	claims := token.(*pkg.Claims)
 	user, err := u.userService.GetUserProfile(ctx.Request.Context(), claims.Id)
 	if err != nil {
 		log.Println(err.Error())
@@ -43,7 +43,7 @@ func (u *UserController) GetProfile(ctx *gin.Context) {
 
 func (u *UserController) GetDashboardInfo(ctx *gin.Context) {
 	token, _ := ctx.Get("claims")
-	claims := token.(pkg.Claims)
+	claims := token.(*pkg.Claims)
 
 	data, err := u.userService.GetMoneyInfo(ctx.Request.Context(), claims.Id)
 	if err != nil {
@@ -64,7 +64,7 @@ func (u *UserController) GetDashboardInfo(ctx *gin.Context) {
 
 func (u *UserController) EditUserProfile(ctx *gin.Context) {
 	token, _ := ctx.Get("claims")
-	claims := token.(pkg.Claims)
+	claims := token.(*pkg.Claims)
 	var body dto.EditProfileRequest
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
 		log.Println(err.Error())
@@ -94,7 +94,7 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 
 func (u *UserController) EditUserPin(ctx *gin.Context) {
 	token, _ := ctx.Get("claims")
-	claims := token.(pkg.Claims)
+	claims := token.(*pkg.Claims)
 	var body dto.EditUserPinRequest
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
 		log.Println(err.Error())
@@ -123,4 +123,33 @@ func (u *UserController) EditUserPin(ctx *gin.Context) {
 
 func (u *UserController) CheckPin(ctx *gin.Context) {
 
+}
+
+func (u *UserController) EditPassword(ctx *gin.Context) {
+	token, _ := ctx.Get("claims")
+	claims := token.(*pkg.Claims)
+	var body dto.EditPasswordRequest
+	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "internal error",
+			Success: false,
+			Error:   "internal server error",
+		})
+		return
+	}
+	if err := u.userService.EditPassword(ctx.Request.Context(), claims.Id, body); err != nil {
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "internal error",
+			Success: false,
+			Error:   "internal server error",
+		})
+		return
+	}
+	ctx.JSON(http.StatusCreated, dto.Response{
+		Message: "update password success",
+		Success: true,
+		Data:    "",
+	})
 }

@@ -76,22 +76,3 @@ func (a *AuthRepository) GetUserById(ctx context.Context, userId int) (model.Use
 	}
 	return user, nil
 }
-
-func (a *AuthRepository) AddToBlackList(ctx context.Context, token string) error {
-	sql := `INSERT INTO token_blacklist (token) VALUES ($1)`
-	_, err := a.db.Exec(ctx, sql, token)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *AuthRepository) IsBlackList(ctx context.Context, token string) (bool, error) {
-	sql := `SELECT token FROM token_blacklist WHERE token = $1`
-	var result string
-	err := a.db.QueryRow(ctx, sql, token).Scan(&result)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}

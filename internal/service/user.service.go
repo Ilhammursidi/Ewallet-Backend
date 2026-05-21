@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
+	"github.com/ewallet-backend/pkg"
 )
 
 type UserService struct {
@@ -72,23 +74,14 @@ func (u *UserService) CheckUserPin(ctx context.Context, id int, req dto.User) (d
 	}, nil
 }
 
-// func (s *UserService) EditPin(ctx context.Context, userID int, req dto.EditPinRequest) error {
-// 	_, oldPinHash, err := s.userRepo.GetPasswordAndPin(ctx, userID)
-// 	if err != nil {
-// 		return errors.New("user tidak ditemukan")
-// 	}
+func (u *UserService) EditPassword(ctx context.Context, id int, req dto.EditPasswordRequest) error {
+	if req.NewPassword != req.ConfrimPassword {
+		return errors.New("passwords are not the same")
+	}
 
-// 	if oldPinHash != "" {
-// 		match, _ := utils.CheckPassword(req.OldPin, oldPinHash)
-// 		if !match {
-// 			return errors.New("PIN lama salah")
-// 		}
-// 	}
+	var hc pkg.HashConfig
+	hc.UseRecommended()
+	hashedPassword := hc.GenHash(req.NewPassword)
 
-// 	newPinHash, err := utils.HashPassword(req.NewPin)
-// 	if err != nil {
-// 		return errors.New("gagal memproses PIN baru")
-// 	}
-
-// 	return s.userRepo.UpdatePin(ctx, userID, newPinHash)
-// }
+	return u.userRepo.EditPassword(ctx, id, &hashedPassword)
+}

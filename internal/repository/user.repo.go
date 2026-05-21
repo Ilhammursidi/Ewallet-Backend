@@ -18,7 +18,7 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 }
 
 func (u *UserRepository) GetProfileId(ctx context.Context, id int) (model.User, error) {
-	sql := `SELECT id, email, fullname, photo_path, phone_number, created_at, updated_at FROM users WHERE id = $1;`
+	sql := `SELECT id, email, COALESCE(fullname,''), COALESCE(photo_path,''), COALESCE(phone_number,''), created_at, updated_at FROM users WHERE id = $1;`
 	args := []any{id}
 
 	var user model.User
@@ -31,7 +31,7 @@ func (u *UserRepository) GetProfileId(ctx context.Context, id int) (model.User, 
 func (u *UserRepository) GetMoneyAccountInfo(ctx context.Context, id int) (model.CashFlow, error) {
 	sql := `SELECT w.balance AS balance, SUM(
 	CASE
-    WHEN t.type IN ('TOPUP','TRANSFER_IN') AND t.status = 'SUCCESS'
+    WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS'
 	THEN t.amount
 	ELSE 0
 	END
@@ -55,8 +55,6 @@ GROUP BY w.balance;`
 	}
 	return money, nil
 }
-
-// func (u *UserRepository) CreateTransfer(ctx context.Context, id int)
 
 func (u *UserRepository) EditProfile(ctx context.Context, id int, fullname, phone, photo *string) (model.User, error) {
 	sql := `UPDATE users 
@@ -82,10 +80,6 @@ func (u *UserRepository) EditUserPin(ctx context.Context, tokenid int, hasHedpin
 	args := []any{tokenid, hasHedpin}
 
 	_, err := u.db.Exec(ctx, sql, args...)
-	// var user model.User
-	// if err := u.db.QueryRow(ctx, sql, args...).Scan(&user.Id, &user.Email, &user.Pin); err != nil {
-	// 	return model.User{}, err
-	// }
 	return err
 }
 
@@ -96,4 +90,12 @@ func (u *UserRepository) CheckPin(ctx context.Context, id int, pin *string) (mod
 		return model.User{}, err
 	}
 	return user, nil
+}
+
+func (u *UserRepository) EditPassword(ctx context.Context, id int, hashedPassword *string) error {
+	sql := `UPDATE users SET password = $2, updated_at = NOW() WHERE id = $1;`
+	args := []any{id, hashedPassword}
+
+	_, err := u.db.Exec(ctx, sql, args...)
+	return err
 }

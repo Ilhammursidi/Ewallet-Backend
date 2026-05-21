@@ -16,7 +16,9 @@ func RegisterUserRouter(router *gin.Engine, db *pgxpool.Pool) {
 	userService := service.NewUserService(userRepo)
 	userController := controller.NewUserController(userService)
 
-	userRouter.GET("/profile", middleware.VerifyToken((*repository.AuthRepository)(userRepo)), userController.GetProfile)
-	userRouter.GET("/dashboard", middleware.VerifyToken((*repository.AuthRepository)(userRepo)), userController.GetDashboardInfo)
-	userRouter.PATCH("/profile", middleware.VerifyToken((*repository.AuthRepository)(userRepo)), userController.EditUserProfile)
+	userRouter.GET("/profile", middleware.VerifyToken, userController.GetProfile)
+	userRouter.GET("/dashboard", middleware.VerifyToken, userController.GetDashboardInfo)
+	userRouter.PATCH("/profile", middleware.VerifyToken, userController.EditUserProfile)
+	userRouter.PATCH("/profile/change-pin", middleware.VerifyToken, userController.EditUserPin)
+	userRouter.PATCH("/profile/change-password", middleware.VerifyToken, userController.EditPassword)
 }
