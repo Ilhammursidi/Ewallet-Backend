@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"log"
 
 	"github.com/ewallet-backend/internal/model"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -60,7 +59,6 @@ GROUP BY w.balance;`
 // func (u *UserRepository) CreateTransfer(ctx context.Context, id int)
 
 func (u *UserRepository) EditProfile(ctx context.Context, id int, fullname, phone, photo *string) (model.User, error) {
-	log.Println(*fullname)
 	sql := `UPDATE users 
 	SET 
 		fullname = $2,
@@ -74,6 +72,27 @@ func (u *UserRepository) EditProfile(ctx context.Context, id int, fullname, phon
 
 	var user model.User
 	if err := u.db.QueryRow(ctx, sql, args...).Scan(&user.Fullname, &user.Email, &user.Phone_number, &user.Photo_path); err != nil {
+		return model.User{}, err
+	}
+	return user, nil
+}
+
+func (u *UserRepository) EditUserPin(ctx context.Context, tokenid int, hasHedpin *string) error {
+	sql := `UPDATE users SET pin = $2, updated_at = NOW() WHERE id = $1;`
+	args := []any{tokenid, hasHedpin}
+
+	_, err := u.db.Exec(ctx, sql, args...)
+	// var user model.User
+	// if err := u.db.QueryRow(ctx, sql, args...).Scan(&user.Id, &user.Email, &user.Pin); err != nil {
+	// 	return model.User{}, err
+	// }
+	return err
+}
+
+func (u *UserRepository) CheckPin(ctx context.Context, id int, pin *string) (model.User, error) {
+	sql := `SELECT pin FROM users WHERE id = $1;`
+	var user model.User
+	if err := u.db.QueryRow(ctx, sql, pin).Scan(&user.Pin); err != nil {
 		return model.User{}, err
 	}
 	return user, nil

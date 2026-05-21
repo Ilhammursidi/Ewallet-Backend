@@ -18,3 +18,8 @@ type EditProfileResponse struct {
 	Phone_number string `json:"phone"`
 	Photo_path   string `json:"photo"`
 }
+
+type EditUserPinRequest struct {
+	OldPin string `json:"oldpin"`
+	NewPin string `json:"newpin" binding:"required,min=6"`
+}

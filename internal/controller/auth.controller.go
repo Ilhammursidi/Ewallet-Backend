@@ -3,9 +3,11 @@ package controller
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/service"
+	"github.com/ewallet-backend/pkg"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 )
@@ -94,6 +96,74 @@ func (a *AuthController) Login(ctx *gin.Context) {
 			"token": token,
 		},
 		Message: "Login Success",
+		Success: true,
+	})
+}
+
+func (a *AuthController) CreatePin(ctx *gin.Context) {
+	claims, exists := ctx.Get("claims")
+	log.Println("claims exists:", exists)
+
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Unauthorized",
+			Success: false,
+			Error:   "user tidak ditemukan",
+		})
+		return
+	}
+
+	userClaims, ok := claims.(pkg.Claims)
+	log.Println("cast ok:", ok)
+	log.Println("userId:", userClaims.Id)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Unauthorized",
+			Success: false,
+			Error:   "invalid token claims",
+		})
+		return
+	}
+
+	var body dto.SetPin
+	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
+		ctx.JSON(http.StatusBadRequest, dto.Response{
+			Message: "Validation Error",
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if err := a.authService.CreatePin(ctx.Request.Context(), userClaims.Id, body); err != nil {
+		ctx.JSON(http.StatusBadRequest, dto.Response{
+			Message: "Error",
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "PIN berhasil dibuat",
+		Success: true,
+	})
+}
+
+func (a *AuthController) Logout(ctx *gin.Context) {
+	bearerToken := ctx.GetHeader("Authorization")
+	token := strings.Split(bearerToken, " ")[1]
+
+	if err := a.authService.LogoutUser(ctx.Request.Context(), token); err != nil {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Logout Failed",
+			Success: false,
+			Error:   "Internal Server Error",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Logout Success",
 		Success: true,
 	})
 }

@@ -23,13 +23,13 @@ func (u *UserService) GetUserProfile(ctx context.Context, id int) (dto.User, err
 		return dto.User{}, err
 	}
 	return dto.User{
-		Id:         res.Id,
-		Email:      res.Email,
-		Fullname:   res.Fullname,
-		Photo_path: res.Photo_path,
+		Id:           res.Id,
+		Email:        res.Email,
+		Fullname:     res.Fullname,
+		Photo_path:   res.Photo_path,
 		Phone_number: res.Phone_number,
-		Created_at: res.Created_at,
-		Updated_at: res.Updated_at,
+		Created_at:   res.Created_at,
+		Updated_at:   res.Updated_at,
 	}, nil
 }
 
@@ -57,3 +57,38 @@ func (u *UserService) EditProfile(ctx context.Context, id int, req dto.EditProfi
 		Photo_path:   user.Photo_path,
 	}, nil
 }
+
+func (u *UserService) EditPin(ctx context.Context, id int, req dto.EditUserPinRequest) error {
+	return u.userRepo.EditUserPin(ctx, id, &req.NewPin)
+}
+
+func (u *UserService) CheckUserPin(ctx context.Context, id int, req dto.User) (dto.User, error) {
+	user, err := u.userRepo.CheckPin(ctx, id, &req.Pin)
+	if err != nil {
+		return dto.User{}, err
+	}
+	return dto.User{
+		Pin: user.Pin,
+	}, nil
+}
+
+// func (s *UserService) EditPin(ctx context.Context, userID int, req dto.EditPinRequest) error {
+// 	_, oldPinHash, err := s.userRepo.GetPasswordAndPin(ctx, userID)
+// 	if err != nil {
+// 		return errors.New("user tidak ditemukan")
+// 	}
+
+// 	if oldPinHash != "" {
+// 		match, _ := utils.CheckPassword(req.OldPin, oldPinHash)
+// 		if !match {
+// 			return errors.New("PIN lama salah")
+// 		}
+// 	}
+
+// 	newPinHash, err := utils.HashPassword(req.NewPin)
+// 	if err != nil {
+// 		return errors.New("gagal memproses PIN baru")
+// 	}
+
+// 	return s.userRepo.UpdatePin(ctx, userID, newPinHash)
+// }

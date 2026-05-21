@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
@@ -69,4 +70,20 @@ func (a *AuthService) LoginUser(ctx context.Context, user dto.NewUser) (string, 
 		return "", err
 	}
 	return token, nil
+}
+
+func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin) error {
+	if body.Pin != body.ConfirmPin {
+		return errors.New("pin dan konfirmasi pin tidak sama")
+	}
+
+	var hc pkg.HashConfig
+	hc.UseRecommended()
+	hashedPin := hc.GenHash(body.Pin)
+
+	return a.authRepo.UpdatePin(ctx, userId, hashedPin)
+}
+
+func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
+	return a.authRepo.AddToBlackList(ctx, token)
 }

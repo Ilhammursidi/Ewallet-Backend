@@ -91,3 +91,36 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 		Data:    data,
 	})
 }
+
+func (u *UserController) EditUserPin(ctx *gin.Context) {
+	token, _ := ctx.Get("claims")
+	claims := token.(pkg.Claims)
+	var body dto.EditUserPinRequest
+	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "internal error",
+			Success: false,
+			Error:   "internal server error",
+		})
+		return
+	}
+	if err := u.userService.EditPin(ctx.Request.Context(), claims.Id, body); err != nil {
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "internal error",
+			Success: false,
+			Error:   "internal server error",
+		})
+		return
+	}
+	ctx.JSON(http.StatusCreated, dto.Response{
+		Message: "update usersPin success",
+		Success: true,
+		Data:    "",
+	})
+}
+
+func (u *UserController) CheckPin(ctx *gin.Context) {
+
+}

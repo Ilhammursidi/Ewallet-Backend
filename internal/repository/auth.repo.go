@@ -59,4 +59,39 @@ func (a *AuthRepository) GetUserByEmail(ctx context.Context, email string) (mode
 	return user, nil
 }
 
-// func (a *AuthRepository) Login(ctx context.Context) ()
+func (a *AuthRepository) UpdatePin(ctx context.Context, userId int, hashedPin string) error {
+	sql := `UPDATE users SET pin = $1 WHERE id = $2`
+	_, err := a.db.Exec(ctx, sql, hashedPin, userId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *AuthRepository) GetUserById(ctx context.Context, userId int) (model.User, error) {
+	sql := `SELECT id, pin FROM users WHERE id = $1`
+	var user model.User
+	if err := a.db.QueryRow(ctx, sql, userId).Scan(&user.Id, &user.Pin); err != nil {
+		return model.User{}, err
+	}
+	return user, nil
+}
+
+func (a *AuthRepository) AddToBlackList(ctx context.Context, token string) error {
+	sql := `INSERT INTO token_blacklist (token) VALUES ($1)`
+	_, err := a.db.Exec(ctx, sql, token)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *AuthRepository) IsBlackList(ctx context.Context, token string) (bool, error) {
+	sql := `SELECT token FROM token_blacklist WHERE token = $1`
+	var result string
+	err := a.db.QueryRow(ctx, sql, token).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
