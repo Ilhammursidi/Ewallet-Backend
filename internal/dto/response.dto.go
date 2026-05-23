@@ -1,8 +1,23 @@
 package dto
 
+// @name Response
 type Response struct {
+	Message string `json:"message" example:"Error Message"`
+	Data    any    `json:"data,omitempty"`
+	Success bool   `json:"isSuccess" example:"false"`
+	Error   string `json:"error,omitempty" example:"internal server error"`
+	Errors  any    `json:"errors,omitempty"`
+}
+
+// @name BaseResponse
+type BaseResponse struct {
 	Message string `json:"message"`
-	Data    any    `json:"data"`
-	Success bool   `json:"success"`
-	Error   string `json:"error"`
+	Success bool   `json:"isSuccess"`
+}
+
+// @name ErrorResponse
+type ErrorResponse struct {
+	Message string `json:"message" example:"error message"`
+	Success bool   `json:"isSuccess" example:"false"`
+	Error   string `json:"error" example:"error"`
 }

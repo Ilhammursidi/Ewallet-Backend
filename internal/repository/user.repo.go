@@ -83,15 +83,6 @@ func (u *UserRepository) EditUserPin(ctx context.Context, tokenid int, hasHedpin
 	return err
 }
 
-func (u *UserRepository) CheckPin(ctx context.Context, id int, pin *string) (model.User, error) {
-	sql := `SELECT pin FROM users WHERE id = $1;`
-	var user model.User
-	if err := u.db.QueryRow(ctx, sql, pin).Scan(&user.Pin); err != nil {
-		return model.User{}, err
-	}
-	return user, nil
-}
-
 func (u *UserRepository) EditPassword(ctx context.Context, id int, hashedPassword *string) error {
 	sql := `UPDATE users SET password = $2, updated_at = NOW() WHERE id = $1;`
 	args := []any{id, hashedPassword}
@@ -99,3 +90,14 @@ func (u *UserRepository) EditPassword(ctx context.Context, id int, hashedPasswor
 	_, err := u.db.Exec(ctx, sql, args...)
 	return err
 }
+
+func (u *UserRepository) CheckPin(ctx context.Context, id int) (model.UserPin, error) {
+	sql := `SELECT pin FROM users WHERE id = $1;`
+	var user model.UserPin
+	if err := u.db.QueryRow(ctx, sql, id).Scan(&user.Pin); err != nil {
+		return model.UserPin{}, err
+	}
+	return user, nil
+}
+
+// func (u *UserRepository) GetTransactionReport(ctx context.Context, id int) ()

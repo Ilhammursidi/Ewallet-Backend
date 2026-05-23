@@ -11,6 +11,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title 						Backend koda 7
+// @version						1.0
+// @description					Backend created by Koda using Gin
+
+// @license.name				MIT
+
+// @host						localhost:8081
+// @BasePath					/
+
+// @securityDefinitions.apikey	ApiKeyAuth
+// @in							header
+// @name						Authorization
+// @description					Bearer token used for authorization
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatalf("Error loading env. \ncause: %s", err.Error())

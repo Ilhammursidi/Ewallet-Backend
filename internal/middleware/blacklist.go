@@ -17,7 +17,7 @@ func Blacklist(blacklistRepo *repository.BlacklistRepository) gin.HandlerFunc {
 		// cek blacklist
 		isBlacklist, err := blacklistRepo.IsBlacklist(ctx.Request.Context(), token)
 		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.Response{
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{
 				Message: "Error",
 				Success: false,
 				Error:   "Internal Server Error",
@@ -25,7 +25,7 @@ func Blacklist(blacklistRepo *repository.BlacklistRepository) gin.HandlerFunc {
 			return
 		}
 		if isBlacklist {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.Response{
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.ErrorResponse{
 				Message: "Unauthorized",
 				Success: false,
 				Error:   "Token sudah tidak valid",

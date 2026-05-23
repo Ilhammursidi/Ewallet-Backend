@@ -3,3 +3,4 @@ tmp
 
 .env
 .air.toml
+.env.migration

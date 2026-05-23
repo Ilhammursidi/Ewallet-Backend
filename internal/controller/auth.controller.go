@@ -22,29 +22,22 @@ func NewAuthController(authService *service.AuthService) *AuthController {
 	}
 }
 
-func (u *AuthController) GetAll(ctx *gin.Context) {
-	userlist, err := u.authService.PrintUser(ctx.Request.Context())
-	if err != nil {
-		log.Println(err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.Response{
-			Message: "Internal Error",
-			Success: false,
-			Error:   "internal server error",
-		})
-		return
-	}
-	ctx.JSON(http.StatusOK, dto.Response{
-		Data:    userlist,
-		Message: "OK",
-		Success: true,
-	})
-}
-
+// User Register
+//
+//	@Summary		Register a user
+//	@Description	create user account
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param 			body body dto.NewUser true "register payload"
+//	@Success		201	{object}	dto.Response
+//	@Failure		500	{object}	dto.ErrorResponse
+//	@Router			/auth/register [post]
 func (a *AuthController) Register(ctx *gin.Context) {
 	var body dto.NewUser
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
 		log.Println("Error: ", err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.Response{
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   "Internal Server Error",
@@ -54,7 +47,7 @@ func (a *AuthController) Register(ctx *gin.Context) {
 	res, err := a.authService.RegisterUser(ctx.Request.Context(), body)
 	if err != nil {
 		log.Println("Error: ", err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.Response{
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   "Internal Server Error",
@@ -69,11 +62,22 @@ func (a *AuthController) Register(ctx *gin.Context) {
 	})
 }
 
+// User Login
+//
+//	@Summary		Login a user
+//	@Description	Login into user account
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param 			body body dto.NewUser true "login payload"
+//	@Success		200	{object}	dto.Response
+//	@Failure		500	{object}	dto.ErrorResponse
+//	@Router			/auth/login [post]
 func (a *AuthController) Login(ctx *gin.Context) {
 	var body dto.NewUser
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
 		log.Println("Error: ", err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.Response{
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   "Internal Server Error",
@@ -83,7 +87,7 @@ func (a *AuthController) Login(ctx *gin.Context) {
 	token, err := a.authService.LoginUser(ctx.Request.Context(), body)
 	if err != nil {
 		log.Println("Error: ", err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.Response{
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   "Internal Server Error",
@@ -92,20 +96,32 @@ func (a *AuthController) Login(ctx *gin.Context) {
 	}
 	log.Println("response data", token)
 	ctx.JSON(http.StatusOK, dto.Response{
-		Data: gin.H{
-			"token": token,
+		Data: dto.LoginResponse{
+			Token: token,
 		},
 		Message: "Login Success",
 		Success: true,
 	})
 }
 
+// Create PIN
+//
+//	@Summary		Create a PIN
+//	@Description	Create PIN for user account
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param 			body body dto.SetPin true "set PIN payload"
+//	@Success		201	{object}	dto.Response
+//	@Failure		401 {object}	dto.ErrorResponse
+//	@Failure		400	{object}	dto.ErrorResponse
+//	@Router			/auth/enter-pin [patch]
 func (a *AuthController) CreatePin(ctx *gin.Context) {
 	claims, exists := ctx.Get("claims")
 	log.Println("claims exists:", exists)
 
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, dto.Response{
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized",
 			Success: false,
 			Error:   "user tidak ditemukan",
@@ -117,7 +133,7 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 	log.Println("cast ok:", ok)
 	log.Println("userId:", userClaims.Id)
 	if !ok {
-		ctx.JSON(http.StatusUnauthorized, dto.Response{
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized",
 			Success: false,
 			Error:   "invalid token claims",
@@ -127,7 +143,7 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 
 	var body dto.SetPin
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.Response{
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Validation Error",
 			Success: false,
 			Error:   err.Error(),
@@ -136,7 +152,7 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 	}
 
 	if err := a.authService.CreatePin(ctx.Request.Context(), userClaims.Id, body); err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.Response{
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   err.Error(),
@@ -144,18 +160,30 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, dto.Response{
-		Message: "PIN berhasil dibuat",
+	ctx.JSON(http.StatusCreated, dto.Response{
+		Message: "PIN created successfully",
 		Success: true,
+		Data:    nil,
 	})
 }
 
+// Logout User
+//
+//		@Summary		Logout User
+//		@Description	Revoke user session and invalidate the JWT token
+//		@Tags			auth
+//		@Accept			json
+//		@Produce		json
+//	 @Security		ApiKeyAuth
+//		@Success		200				{object}	dto.Response	"Logout Success"
+//		@Failure		500				{object}	dto.ErrorResponse	"Internal Server Error"
+//		@Router			/auth/logout [post]
 func (a *AuthController) Logout(ctx *gin.Context) {
 	bearerToken := ctx.GetHeader("Authorization")
 	token := strings.Split(bearerToken, " ")[1]
 
 	if err := a.authService.LogoutUser(ctx.Request.Context(), token); err != nil {
-		ctx.JSON(http.StatusInternalServerError, dto.Response{
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Logout Failed",
 			Success: false,
 			Error:   "Internal Server Error",
@@ -165,5 +193,6 @@ func (a *AuthController) Logout(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: "Logout Success",
 		Success: true,
+		Data:    nil,
 	})
 }

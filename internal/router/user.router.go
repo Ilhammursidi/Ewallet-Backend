@@ -21,4 +21,5 @@ func RegisterUserRouter(router *gin.Engine, db *pgxpool.Pool) {
 	userRouter.PATCH("/profile", middleware.VerifyToken, userController.EditUserProfile)
 	userRouter.PATCH("/profile/change-pin", middleware.VerifyToken, userController.EditUserPin)
 	userRouter.PATCH("/profile/change-password", middleware.VerifyToken, userController.EditPassword)
+	userRouter.GET("/check-pin", middleware.VerifyToken, userController.CheckPin)
 }

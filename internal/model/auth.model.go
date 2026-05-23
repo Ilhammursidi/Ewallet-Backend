@@ -4,7 +4,7 @@ import "time"
 
 type User struct {
 	Id           int        `db:"id"`
-	Email        string     `db:"email"`
+	Email        string     `db:"email" example:"anjay"`
 	Password     string     `db:"password"`
 	Pin          string     `db:"pin"`
 	Fullname     string     `db:"fullname"`

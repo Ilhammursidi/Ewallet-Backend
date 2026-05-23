@@ -2,6 +2,7 @@ package dto
 
 import "time"
 
+// @name User
 type User struct {
 	Id           int        `json:"id"`
 	Email        string     `json:"email"`
@@ -16,12 +17,19 @@ type User struct {
 	Deleted_at   *time.Time `json:"deleted_at"`
 }
 
+// @name NewUser
 type NewUser struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	Email    string `json:"email" binding:"required,email" example:"ilham@mail.com"`
+	Password string `json:"password" binding:"required,min=8" example:"ilham123"`
 }
 
+// @name SetPin
 type SetPin struct {
-	Pin        string `json:"pin" binding:"required,len=6"`
-	ConfirmPin string `json:"confirm_pin" binding:"required,len=6"`
+	Pin        string `json:"pin" binding:"required,len=6" example:"123456"`
+	ConfirmPin string `json:"confirm_pin" binding:"required,len=6" example:"123456"`
+}
+
+// @name LoginResponse
+type LoginResponse struct {
+	Token string `json:"token" example:"token..."`
 }

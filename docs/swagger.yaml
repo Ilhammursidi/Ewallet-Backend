@@ -1,0 +1,394 @@
+basePath: /
+definitions:
+  dto.EditPasswordRequest:
+    properties:
+      confirm_password:
+        minLength: 7
+        type: string
+      newpassword:
+        minLength: 7
+        type: string
+      oldpassword:
+        minLength: 7
+        type: string
+    required:
+    - confirm_password
+    - newpassword
+    - oldpassword
+    type: object
+  dto.EditProfileRequest:
+    properties:
+      fullname:
+        type: string
+      phone:
+        type: string
+      photo:
+        type: string
+    type: object
+  dto.EditUserPinRequest:
+    properties:
+      confirm_pin:
+        type: string
+      newpin:
+        type: string
+      oldpin:
+        type: string
+    required:
+    - confirm_pin
+    - newpin
+    - oldpin
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        example: error
+        type: string
+      isSuccess:
+        example: false
+        type: boolean
+      message:
+        example: error message
+        type: string
+    type: object
+  dto.NewUser:
+    properties:
+      email:
+        example: ilham@mail.com
+        type: string
+      password:
+        example: ilham123
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.Response:
+    properties:
+      data: {}
+      error:
+        example: internal server error
+        type: string
+      errors: {}
+      isSuccess:
+        example: false
+        type: boolean
+      message:
+        example: Error Message
+        type: string
+    type: object
+  dto.SetPin:
+    properties:
+      confirm_pin:
+        example: "123456"
+        type: string
+      pin:
+        example: "123456"
+        type: string
+    required:
+    - confirm_pin
+    - pin
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: Backend created by Koda using Gin
+  license:
+    name: MIT
+  title: Backend koda 7
+  version: "1.0"
+paths:
+  /auth/enter-pin:
+    patch:
+      consumes:
+      - application/json
+      description: Create PIN for user account
+      parameters:
+      - description: set PIN payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SetPin'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create a PIN
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login into user account
+      parameters:
+      - description: login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.NewUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Login a user
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revoke user session and invalidate the JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout Success
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Logout User
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: create user account
+      parameters:
+      - description: register payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.NewUser'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Register a user
+      tags:
+      - auth
+  /transaction/receivers:
+    get:
+      consumes:
+      - application/json
+      description: Get list of transaction receivers with pagination and search filter
+      parameters:
+      - default: 1
+        description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page (default 10)
+        in: query
+        name: limit
+        type: integer
+      - description: Search by receiver name or phone number
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success get receivers list
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Find Receivers
+      tags:
+      - transaction
+  /users/check-pin:
+    get:
+      consumes:
+      - application/json
+      description: Verify whether the user has already set a transaction PIN or not
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success check PIN
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Check PIN Status
+      tags:
+      - user
+  /users/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve balance, income, and expense summary for the user dashboard
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success retrieve balance, income, and expense
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Dashboard Info
+      tags:
+      - user
+  /users/profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed profile information for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success retrieve profile
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get User Profile
+      tags:
+      - user
+    patch:
+      consumes:
+      - application/json
+      description: Update user profile fields like name, email, or profile photo URL
+      parameters:
+      - description: Updated profile payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EditProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Profile updated successfully
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Edit User Profile
+      tags:
+      - user
+  /users/profile/change-password:
+    patch:
+      consumes:
+      - application/json
+      description: Change current password to a new password for account security
+      parameters:
+      - description: Old and New password payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EditPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Password updated successfully
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Change User Password
+      tags:
+      - user
+  /users/profile/change-pin:
+    patch:
+      consumes:
+      - application/json
+      description: Change old transaction PIN to a new 6-digit secure PIN
+      parameters:
+      - description: Old and New PIN payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EditUserPinRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: PIN updated successfully
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Change User PIN
+      tags:
+      - user
+securityDefinitions:
+  ApiKeyAuth:
+    description: Bearer token used for authorization
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

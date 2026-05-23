@@ -17,7 +17,7 @@ func VerifyToken(ctx *gin.Context) {
 	bearerToken := ctx.GetHeader("Authorization")
 	log.Println("bearerToken:", bearerToken) // tambah ini
 	if bearerToken == "" {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.Response{
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized access, please login",
 			Success: false,
 			Error:   "Unauthorized(bearer) access, please login",
@@ -26,7 +26,7 @@ func VerifyToken(ctx *gin.Context) {
 	}
 	splittedBearer := strings.Split(bearerToken, " ")
 	if len(splittedBearer) != 2 {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.Response{
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized access, please login",
 			Success: false,
 			Error:   "invalid token",
@@ -39,14 +39,14 @@ func VerifyToken(ctx *gin.Context) {
 	if err := claims.VerifyJWT(token); err != nil {
 		log.Println("Error: ", err.Error())
 		if errors.Is(err, jwt.ErrTokenInvalidIssuer) || errors.Is(err, jwt.ErrTokenExpired) {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.Response{
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.ErrorResponse{
 				Message: "Unauthorized Access, Please Login",
 				Success: false,
 				Error:   err.Error(),
 			})
 			return
 		}
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.Response{
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   "Internal Server Error",

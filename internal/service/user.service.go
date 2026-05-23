@@ -64,16 +64,6 @@ func (u *UserService) EditPin(ctx context.Context, id int, req dto.EditUserPinRe
 	return u.userRepo.EditUserPin(ctx, id, &req.NewPin)
 }
 
-func (u *UserService) CheckUserPin(ctx context.Context, id int, req dto.User) (dto.User, error) {
-	user, err := u.userRepo.CheckPin(ctx, id, &req.Pin)
-	if err != nil {
-		return dto.User{}, err
-	}
-	return dto.User{
-		Pin: user.Pin,
-	}, nil
-}
-
 func (u *UserService) EditPassword(ctx context.Context, id int, req dto.EditPasswordRequest) error {
 	if req.NewPassword != req.ConfrimPassword {
 		return errors.New("passwords are not the same")
@@ -84,4 +74,14 @@ func (u *UserService) EditPassword(ctx context.Context, id int, req dto.EditPass
 	hashedPassword := hc.GenHash(req.NewPassword)
 
 	return u.userRepo.EditPassword(ctx, id, &hashedPassword)
+}
+
+func (u *UserService) CheckUserPin(ctx context.Context, id int) (dto.CheckPinResponse, error) {
+	user, err := u.userRepo.CheckPin(ctx, id)
+	if err != nil {
+		return dto.CheckPinResponse{}, err
+	}
+	return dto.CheckPinResponse{
+		Pin: user.Pin,
+	}, nil
 }

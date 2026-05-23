@@ -17,25 +17,6 @@ func NewAuthRepository(db *pgxpool.Pool) *AuthRepository {
 	}
 }
 
-func (a *AuthRepository) FetchUserList(ctx context.Context) ([]model.User, error) {
-	sql := "SELECT id,email,password,pin,fullname,photo_path,phone_number,created_at,updated_at,deleted_at FROM users LIMIT 5"
-	rows, err := a.db.Query(ctx, sql)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []model.User
-	for rows.Next() {
-		var users model.User
-		if err := rows.Scan(&users.Id, &users.Email, &users.Fullname, &users.Password, &users.Pin, &users.Photo_path, &users.Phone_number, &users.Created_at, &users.Updated_at, &users.Deleted_at); err != nil {
-			return nil, err
-		}
-		result = append(result, users)
-	}
-	return result, nil
-}
-
 func (a *AuthRepository) NewUser(ctx context.Context, email, hashedPwd string) (model.User, error) {
 	sql := "WITH register AS (INSERT INTO Users (email,password) VALUES ($1,$2) RETURNING id, email, created_at), create_wallet AS (INSERT INTO wallet (user_id) SELECT id FROM register) SELECT id, email, created_at FROM register"
 

@@ -22,20 +22,21 @@ func NewTransactionRepo(db *pgxpool.Pool) *TransactionRepository {
 }
 
 func (tr *TransactionRepository) FindReceivers(ctx context.Context, dbtx DBTX, userId int, search string, limit, offset int) ([]model.Receiver, error) {
-	target := "%" + search + "%"
+	target := `%` + search + `%`
 	sqlQuery := `
 		SELECT id, COALESCE(photo_path, '') AS photo, COALESCE(fullname, email) AS receiver, COALESCE(phone_number, '') AS phone
 		FROM users
 		WHERE id != $1
 		AND (
-			fullname ILIKE $2
+			COALESCE(fullname, '') ILIKE $2
 			OR email ILIKE $2 
-			OR phone_number ILIKE $2
+			OR COALESCE(phone_number, '') ILIKE $2 
 			)
 		ORDER BY COALESCE(fullname, email) ASC
 		LIMIT $3
 		OFFSET $4;
 	`
+
 	args := []any{userId, target, limit, offset}
 
 	rows, err := dbtx.Query(ctx, sqlQuery, args...)
@@ -61,4 +62,6 @@ func (tr *TransactionRepository) FindReceivers(ctx context.Context, dbtx DBTX, u
 	return receivers, nil
 }
 
-// func (tr *TransactionRepository) CreateTopUp(ctx context.Context)
+func (tr *TransactionRepository) CreateTopUp(ctx context.Context) {
+
+}
