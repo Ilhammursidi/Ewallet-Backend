@@ -11,4 +11,5 @@ func InitRouter(router *gin.Engine, db *pgxpool.Pool) {
 
 	RegisterAuthRouter(router, db)
 	RegisterUserRouter(router, db)
+	RegisterTransactionRouter(router, db)
 }
