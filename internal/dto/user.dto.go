@@ -1,5 +1,10 @@
 package dto
 
+import (
+	"mime/multipart"
+	"time"
+)
+
 // @name CashFlow
 type CashFlow struct {
 	Balance int `json:"balance"`
@@ -9,17 +14,17 @@ type CashFlow struct {
 
 // @name EditProfileRequest
 type EditProfileRequest struct {
-	Fullname     string `json:"fullname"`
-	Phone_number string `json:"phone"`
-	Photo_path   string `json:"photo"`
+	Fullname     *string               `form:"fullname"`
+	Phone_number *string               `form:"phone"`
+	Photo_path   *multipart.FileHeader `form:"photo" binding:"omitempty"`
 }
 
 // @name EditProfileResponse
 type EditProfileResponse struct {
-	Fullname     string `json:"fullname"`
-	Email        string `json:"email"`
-	Phone_number string `json:"phone"`
-	Photo_path   string `json:"photo"`
+	Fullname     *string `json:"fullname"`
+	Email        string  `json:"email"`
+	Phone_number *string `json:"phone"`
+	Photo_path   *string `json:"photo"`
 }
 
 // @name EditUserPinRequest
@@ -47,4 +52,43 @@ type UserProfileResponse struct {
 	Email        string `json:"email"`
 	Phone_number string `json:"phone"`
 	Photo_path   string `json:"photo"`
+}
+
+// @name TransactionReport
+type TransactionReportDTO struct {
+	Period  *time.Time `db:"period"`
+	Income  int        `db:"income"`
+	Expense int        `db:"expense"`
+}
+
+// @name TransactionReportRequest
+type TransactionReportRequest struct {
+	Period string `form:"period" binding:"required,oneof=week month year" example:"month"`
+}
+
+// @name TransactionHistoryRequest
+type TransactionHistoryRequest struct {
+	Page   string `form:"page" default:"1" example:"1"`
+	Search string `form:"search" example:"naruto"`
+}
+
+type PaginationMetaData struct {
+	TotalPages int    `json:"total_page,omitempty"`
+	TotalData  int    `json:"total_data,omitempty"`
+	PageSize   int    `json:"page_size,omitempty"`
+	NextLink   string `json:"next_page,omitempty"`
+	PrevLink   string `json:"prev_page,omitempty"`
+}
+
+type GetTransactionHistory struct {
+	TransactionID     int       `json:"transaction_id"`
+	Amount            int       `json:"amount"`
+	Flow_type         string    `json:"type"`
+	Type              string    `json:"activity_type"`
+	Status            string    `json:"status"`
+	CreatedAt         time.Time `json:"created_at"`
+	Description       string    `json:"transfer_description"`
+	ReceiverName      string    `json:"receiver_name"`
+	PaymentMethodName string    `json:"payment_method_name"`
+	TotalCount        int       `json:"total_count"`
 }

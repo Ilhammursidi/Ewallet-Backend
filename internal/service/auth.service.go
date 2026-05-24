@@ -33,7 +33,7 @@ func (a *AuthService) RegisterUser(ctx context.Context, user dto.NewUser) (dto.U
 		Id:         newUser.Id,
 		Email:      newUser.Email,
 		Password:   newUser.Password,
-		Created_at: newUser.Created_at,
+		Created_at: *newUser.Created_at,
 	}, nil
 }
 

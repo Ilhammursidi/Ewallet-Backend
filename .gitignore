@@ -1,6 +1,11 @@
 http
 tmp
 
+public/docs/*
+public/img/*
+
+!public/**/readme.md
+
 .env
 .air.toml
 .env.migration

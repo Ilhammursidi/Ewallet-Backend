@@ -3,19 +3,26 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"math"
+	"strconv"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
 	"github.com/ewallet-backend/pkg"
+	"github.com/redis/go-redis/v9"
 )
 
 type UserService struct {
 	userRepo *repository.UserRepository
+	rdb      *redis.Client
 }
 
-func NewUserService(userRepo *repository.UserRepository) *UserService {
+func NewUserService(userRepo *repository.UserRepository, rdb *redis.Client) *UserService {
 	return &UserService{
 		userRepo: userRepo,
+		rdb:      rdb,
 	}
 }
 
@@ -27,10 +34,10 @@ func (u *UserService) GetUserProfile(ctx context.Context, id int) (dto.User, err
 	return dto.User{
 		Id:           res.Id,
 		Email:        res.Email,
-		Fullname:     res.Fullname,
-		Photo_path:   res.Photo_path,
-		Phone_number: res.Phone_number,
-		Created_at:   res.Created_at,
+		Fullname:     *res.Fullname,
+		Photo_path:   *res.Photo_path,
+		Phone_number: *res.Phone_number,
+		Created_at:   *res.Created_at,
 		Updated_at:   res.Updated_at,
 	}, nil
 }
@@ -47,11 +54,12 @@ func (u *UserService) GetMoneyInfo(ctx context.Context, id int) (dto.CashFlow, e
 	}, nil
 }
 
-func (u *UserService) EditProfile(ctx context.Context, id int, req dto.EditProfileRequest) (dto.EditProfileResponse, error) {
-	user, err := u.userRepo.EditProfile(ctx, id, &req.Fullname, &req.Phone_number, &req.Photo_path)
+func (u *UserService) EditProfile(ctx context.Context, id int, req dto.EditProfileRequest, photoPath *string) (dto.EditProfileResponse, error) {
+	user, err := u.userRepo.EditProfile(ctx, id, req.Fullname, req.Phone_number, photoPath)
 	if err != nil {
 		return dto.EditProfileResponse{}, err
 	}
+
 	return dto.EditProfileResponse{
 		Fullname:     user.Fullname,
 		Email:        user.Email,
@@ -84,4 +92,64 @@ func (u *UserService) CheckUserPin(ctx context.Context, id int) (dto.CheckPinRes
 	return dto.CheckPinResponse{
 		Pin: user.Pin,
 	}, nil
+}
+
+func (u *UserService) GetTransactionReport(ctx context.Context, id int, req dto.TransactionReportRequest) ([]dto.TransactionReportDTO, error) {
+	data, err := u.userRepo.GetTransactionReport(ctx, id, req.Period)
+	if err != nil {
+		return nil, err
+	}
+	var transactions []dto.TransactionReportDTO
+	for _, transaction := range data {
+		transactions = append(transactions, dto.TransactionReportDTO{
+			Period:  transaction.Period,
+			Income:  transaction.Income,
+			Expense: transaction.Expense,
+		})
+	}
+	return transactions, nil
+}
+
+func (u *UserService) TransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.GetTransactionHistory, dto.PaginationMetaData, error) {
+	data, err := u.userRepo.GetTransactionHistory(ctx, id, req)
+	if err != nil {
+		return nil, dto.PaginationMetaData{}, err
+	}
+	log.Println("apakah work:", data)
+	if len(data) == 0 {
+		return []dto.GetTransactionHistory{}, dto.PaginationMetaData{}, nil
+	}
+
+	totalData := data[0].TotalCount
+	limit := 10
+	totalPage := int(math.Ceil(float64(totalData) / float64(limit)))
+
+	page, err := strconv.Atoi(req.Page)
+	if err != nil {
+		return nil, dto.PaginationMetaData{}, err
+	}
+
+	var users []dto.GetTransactionHistory
+	prevLink := fmt.Sprintf("/transactions/?search=%s&page=%d", req.Search, page-1)
+	nextLink := fmt.Sprintf("/transactions/?search=%s&page=%d", req.Search, page+1)
+	for _, user := range data {
+		users = append(users, dto.GetTransactionHistory{
+			TransactionID:     user.TransactionID,
+			Amount:            user.Amount,
+			Flow_type:         user.Flow_type,
+			Type:              user.Type,
+			Status:            user.Status,
+			CreatedAt:         user.CreatedAt,
+			Description:       user.Description,
+			ReceiverName:      user.ReceiverName,
+			PaymentMethodName: user.PaymentMethodName,
+		})
+	}
+	metaDataPagination := dto.PaginationMetaData{
+		TotalPages: totalPage,
+		TotalData:  totalData,
+		NextLink:   nextLink,
+		PrevLink:   prevLink,
+	}
+	return users, metaDataPagination, nil
 }

@@ -255,7 +255,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "users"
                 ],
                 "summary": "Check PIN Status",
                 "responses": {
@@ -289,7 +289,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "users"
                 ],
                 "summary": "Get Dashboard Info",
                 "responses": {
@@ -323,7 +323,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "users"
                 ],
                 "summary": "Get User Profile",
                 "responses": {
@@ -347,33 +347,48 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update user profile fields like name, email, or profile photo URL",
+                "description": "Update user profile fields like name, email, or profile photo",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "users"
                 ],
                 "summary": "Edit User Profile",
                 "parameters": [
                     {
-                        "description": "Updated profile payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.EditProfileRequest"
-                        }
+                        "type": "string",
+                        "description": "Full name",
+                        "name": "fullname",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Phone number",
+                        "name": "phone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Profile photo (jpg, jpeg, png, webp, max 2MB)",
+                        "name": "photo",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Profile updated successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     },
                     "500": {
@@ -395,7 +410,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "users"
                 ],
                 "summary": "Change User Password",
                 "parameters": [
@@ -440,7 +455,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "users"
                 ],
                 "summary": "Change User PIN",
                 "parameters": [
@@ -469,6 +484,126 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/transaction-report": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get aggregated income and expense report for the authenticated user, grouped by the selected time period",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get Transaction Report",
+                "parameters": [
+                    {
+                        "enum": [
+                            "week",
+                            "month",
+                            "year"
+                        ],
+                        "type": "string",
+                        "example": "\"month\"",
+                        "description": "Time period to group by",
+                        "name": "period",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get Data Successs",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a paginated list of the authenticated user's transaction history, optionally filtered by a search keyword",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get transaction history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"Naruto\"",
+                        "description": "Search by receiver name, payment method, or description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"1\"",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.ResponseSuccess"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dto.GetTransactionHistory"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -491,20 +626,6 @@ const docTemplate = `{
                 "oldpassword": {
                     "type": "string",
                     "minLength": 7
-                }
-            }
-        },
-        "dto.EditProfileRequest": {
-            "type": "object",
-            "properties": {
-                "fullname": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "photo": {
-                    "type": "string"
                 }
             }
         },
@@ -544,6 +665,41 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GetTransactionHistory": {
+            "type": "object",
+            "properties": {
+                "activity_type": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "payment_method_name": {
+                    "type": "string"
+                },
+                "receiver_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "transaction_id": {
+                    "type": "integer"
+                },
+                "transfer_description": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.NewUser": {
             "type": "object",
             "required": [
@@ -578,6 +734,19 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Error Message"
+                }
+            }
+        },
+        "dto.ResponseSuccess": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Welcome, John doe"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
                 }
             }
         },

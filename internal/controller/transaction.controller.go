@@ -96,3 +96,5 @@ func (tc *TransactionController) FindReceivers(ctx *gin.Context) {
 		Data:    res,
 	})
 }
+
+// func (tc *TransactionController) CreateTopUp

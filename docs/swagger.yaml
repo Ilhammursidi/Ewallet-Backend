@@ -16,15 +16,6 @@ definitions:
     - newpassword
     - oldpassword
     type: object
-  dto.EditProfileRequest:
-    properties:
-      fullname:
-        type: string
-      phone:
-        type: string
-      photo:
-        type: string
-    type: object
   dto.EditUserPinRequest:
     properties:
       confirm_pin:
@@ -48,6 +39,29 @@ definitions:
         type: boolean
       message:
         example: error message
+        type: string
+    type: object
+  dto.GetTransactionHistory:
+    properties:
+      activity_type:
+        type: string
+      amount:
+        type: integer
+      created_at:
+        type: string
+      payment_method_name:
+        type: string
+      receiver_name:
+        type: string
+      status:
+        type: string
+      total_count:
+        type: integer
+      transaction_id:
+        type: integer
+      transfer_description:
+        type: string
+      type:
         type: string
     type: object
   dto.NewUser:
@@ -75,6 +89,15 @@ definitions:
         type: boolean
       message:
         example: Error Message
+        type: string
+    type: object
+  dto.ResponseSuccess:
+    properties:
+      message:
+        example: Welcome, John doe
+        type: string
+      status:
+        example: success
         type: string
     type: object
   dto.SetPin:
@@ -261,7 +284,7 @@ paths:
       - ApiKeyAuth: []
       summary: Check PIN Status
       tags:
-      - user
+      - users
   /users/dashboard:
     get:
       consumes:
@@ -282,7 +305,7 @@ paths:
       - ApiKeyAuth: []
       summary: Get Dashboard Info
       tags:
-      - user
+      - users
   /users/profile:
     get:
       consumes:
@@ -303,25 +326,35 @@ paths:
       - ApiKeyAuth: []
       summary: Get User Profile
       tags:
-      - user
+      - users
     patch:
       consumes:
-      - application/json
-      description: Update user profile fields like name, email, or profile photo URL
+      - multipart/form-data
+      description: Update user profile fields like name, email, or profile photo
       parameters:
-      - description: Updated profile payload
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dto.EditProfileRequest'
+      - description: Full name
+        in: formData
+        name: fullname
+        type: string
+      - description: Phone number
+        in: formData
+        name: phone
+        type: string
+      - description: Profile photo (jpg, jpeg, png, webp, max 2MB)
+        in: formData
+        name: photo
+        type: file
       produces:
       - application/json
       responses:
-        "201":
+        "200":
           description: Profile updated successfully
           schema:
             $ref: '#/definitions/dto.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -330,7 +363,7 @@ paths:
       - ApiKeyAuth: []
       summary: Edit User Profile
       tags:
-      - user
+      - users
   /users/profile/change-password:
     patch:
       consumes:
@@ -356,7 +389,7 @@ paths:
             $ref: '#/definitions/dto.ErrorResponse'
       summary: Change User Password
       tags:
-      - user
+      - users
   /users/profile/change-pin:
     patch:
       consumes:
@@ -384,7 +417,84 @@ paths:
       - ApiKeyAuth: []
       summary: Change User PIN
       tags:
-      - user
+      - users
+  /users/transaction-report:
+    get:
+      consumes:
+      - application/json
+      description: Get aggregated income and expense report for the authenticated
+        user, grouped by the selected time period
+      parameters:
+      - description: Time period to group by
+        enum:
+        - week
+        - month
+        - year
+        example: '"month"'
+        in: query
+        name: period
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get Data Successs
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Transaction Report
+      tags:
+      - users
+  /users/transactions:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of the authenticated user's transaction history,
+        optionally filtered by a search keyword
+      parameters:
+      - description: Search by receiver name, payment method, or description
+        example: '"Naruto"'
+        in: query
+        name: search
+        type: string
+      - description: Page number
+        example: '"1"'
+        in: query
+        name: page
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.ResponseSuccess'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.GetTransactionHistory'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Get transaction history
+      tags:
+      - users
 securityDefinitions:
   ApiKeyAuth:
     description: Bearer token used for authorization

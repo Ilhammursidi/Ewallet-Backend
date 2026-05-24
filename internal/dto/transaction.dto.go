@@ -19,3 +19,12 @@ type ReceiverListResponse struct {
 	Items []ReceiverResponse     `json:"items"`
 	Meta  PaginationMetaResponse `json:"meta"`
 }
+
+// @name TopupRequest
+type TopupRequest struct {
+	SubTotal        uint `json:"sub_total" binding:"required"`
+	PaymentMethodId int  `json:"payment_method_id" binding:"required"`
+	Order           int  `json:""`
+	Delivery        int
+	Tax             int
+}

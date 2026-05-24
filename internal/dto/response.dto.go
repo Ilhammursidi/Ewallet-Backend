@@ -21,3 +21,8 @@ type ErrorResponse struct {
 	Success bool   `json:"isSuccess" example:"false"`
 	Error   string `json:"error" example:"error"`
 }
+
+type ResponseSuccess struct {
+	Status  string `json:"status" example:"success"`
+	Message string `json:"message" example:"Welcome, John doe"`
+}

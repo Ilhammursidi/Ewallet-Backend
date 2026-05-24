@@ -72,3 +72,20 @@ func JSONNoContent(ctx *gin.Context) {
 		Success: true,
 	})
 }
+
+func SuccessWithMetaData(ctx *gin.Context, statusCode int, message string, data any, meta any) {
+	res := dto.ResponseSuccess{
+		Status:  "success",
+		Message: message,
+	}
+
+	ctx.JSON(statusCode, struct {
+		dto.ResponseSuccess
+		Data any `json:"data"`
+		Meta any `json:"meta"`
+	}{
+		ResponseSuccess: res,
+		Data:            data,
+		Meta:            meta,
+	})
+}

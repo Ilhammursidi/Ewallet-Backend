@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"log"
 
 	"github.com/ewallet-backend/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -62,6 +63,24 @@ func (tr *TransactionRepository) FindReceivers(ctx context.Context, dbtx DBTX, u
 	return receivers, nil
 }
 
-func (tr *TransactionRepository) CreateTopUp(ctx context.Context) {
+func (tr *TransactionRepository) CreateTransaction(ctx context.Context, dbtx DBTX, userId int, typeTransaction string, amount uint) (int, error) {
+	sql := `
+		INSERT INTO transactions (user_id, amount, type, status)
+		VALUES ($1, $2, $3, 'success')
+		RETURNING id;
+	`
+	args := []any{userId, amount, typeTransaction}
 
+	var transactionId int
+	if err := dbtx.QueryRow(ctx, sql, args...).Scan(&transactionId); err != nil {
+		return 0, err
+	}
+	log.Println(transactionId)
+
+	return transactionId, nil
 }
+
+// func (tr *TransactionRepository) CreateTopUp(ctx context.Context, dbtx DBTX, id int, amount int)   {
+// 	sql := `WITH topup AS (
+// 	INSERT INTO topup_details (transaction_id, wallet_id, payment_method_id, order_amount, tax_amount, delivery_fee, total_amount, status, created_at) VALUES ($1,)`
+// }
