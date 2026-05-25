@@ -11,9 +11,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// @title 						Backend koda 7
+// @title 						Ewallet-Backend
 // @version						1.0
-// @description					Backend created by Koda using Gin
+// @description					Backend created by ilhammursidi using Gin
 
 // @license.name				MIT
 

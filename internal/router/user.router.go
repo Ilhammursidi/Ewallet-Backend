@@ -20,10 +20,8 @@ func RegisterUserRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.Client)
 	userRouter.GET("/dashboard", middleware.VerifyToken, userController.GetDashboardInfo)
 	userRouter.GET("/profile", middleware.VerifyToken, userController.GetProfile)
 	userRouter.PATCH("/profile", middleware.VerifyToken, userController.EditUserProfile)
-	{
-		userRouter.PATCH("/change-pin", middleware.VerifyToken, userController.EditUserPin)
-		userRouter.PATCH("/change-password", middleware.VerifyToken, userController.EditPassword)
-	}
+	userRouter.PATCH("/profile/change-password", middleware.VerifyToken, userController.EditPassword)
+	userRouter.PATCH("/profile/change-pin", middleware.VerifyToken, userController.EditUserPin)
 	userRouter.GET("/check-pin", middleware.VerifyToken, userController.CheckPin)
 	userRouter.GET("/transaction-report", middleware.VerifyToken, userController.TransactionReportGraph)
 	userRouter.GET("/transactions", middleware.VerifyToken, userController.GetTransactionHistory)

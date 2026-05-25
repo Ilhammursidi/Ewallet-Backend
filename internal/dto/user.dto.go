@@ -43,7 +43,7 @@ type EditPasswordRequest struct {
 
 // @name CheckPinResponse
 type CheckPinResponse struct {
-	Pin string `json:"pin"`
+	HasPin bool `json:"has_pin"`
 }
 
 // @name UserProfileResponse

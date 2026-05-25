@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"log"
 
 	"github.com/ewallet-backend/internal/model"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -56,4 +57,24 @@ func (a *AuthRepository) GetUserById(ctx context.Context, userId int) (model.Use
 		return model.User{}, err
 	}
 	return user, nil
+}
+
+func (a *AuthRepository) AddToBlackList(ctx context.Context, token string) error {
+	sql := `INSERT INTO token_blacklist (token) VALUES ($1)`
+	log.Println("repository")
+	_, err := a.db.Exec(ctx, sql, token)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *AuthRepository) IsBlacklist(ctx context.Context, token string) (bool, error) {
+	sql := `SELECT token FROM token_blacklist WHERE token = $1`
+	var result string
+	err := a.db.QueryRow(ctx, sql, token).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

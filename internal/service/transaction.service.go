@@ -6,17 +6,20 @@ import (
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type TransactionService struct {
 	db                    *pgxpool.Pool
 	transactionRepository *repository.TransactionRepository
+	rdb                   *redis.Client
 }
 
-func NewTransactionService(transactionRepository *repository.TransactionRepository, db *pgxpool.Pool) *TransactionService {
+func NewTransactionService(transactionRepository *repository.TransactionRepository, db *pgxpool.Pool, rdb *redis.Client) *TransactionService {
 	return &TransactionService{
 		db:                    db,
 		transactionRepository: transactionRepository,
+		rdb:                   rdb,
 	}
 }
 

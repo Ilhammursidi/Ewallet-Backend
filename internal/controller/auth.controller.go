@@ -50,7 +50,7 @@ func (a *AuthController) Register(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
-			Error:   "Internal Server Error",
+			Error:   "Email already register",
 		})
 		return
 	}
@@ -90,7 +90,7 @@ func (a *AuthController) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
-			Error:   "Internal Server Error",
+			Error:   "Invalid email or password",
 		})
 		return
 	}
@@ -106,16 +106,17 @@ func (a *AuthController) Login(ctx *gin.Context) {
 
 // Create PIN
 //
-//	@Summary		Create a PIN
-//	@Description	Create PIN for user account
-//	@Tags			auth
-//	@Accept			json
-//	@Produce		json
-//	@Param 			body body dto.SetPin true "set PIN payload"
-//	@Success		201	{object}	dto.Response
-//	@Failure		401 {object}	dto.ErrorResponse
-//	@Failure		400	{object}	dto.ErrorResponse
-//	@Router			/auth/enter-pin [patch]
+//		@Summary		Create a PIN
+//		@Description	Create PIN for user account
+//		@Tags			auth
+//		@Accept			json
+//		@Produce		json
+//	    @security       ApiKeyAuth
+//		@Param 			body body dto.SetPin true "set PIN payload"
+//		@Success		201	{object}	dto.Response
+//		@Failure		401 {object}	dto.ErrorResponse
+//		@Failure		400	{object}	dto.ErrorResponse
+//		@Router			/auth/enter-pin [patch]
 func (a *AuthController) CreatePin(ctx *gin.Context) {
 	claims, exists := ctx.Get("claims")
 	log.Println("claims exists:", exists)
@@ -174,22 +175,26 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 //		@Tags			auth
 //		@Accept			json
 //		@Produce		json
-//	 @Security		ApiKeyAuth
+//	 	@Security		ApiKeyAuth
 //		@Success		200				{object}	dto.Response	"Logout Success"
 //		@Failure		500				{object}	dto.ErrorResponse	"Internal Server Error"
 //		@Router			/auth/logout [post]
 func (a *AuthController) Logout(ctx *gin.Context) {
 	bearerToken := ctx.GetHeader("Authorization")
+	log.Println("bearerToken logout", bearerToken)
 	token := strings.Split(bearerToken, " ")[1]
+	log.Println("logout_controller : ", token)
 
 	if err := a.authService.LogoutUser(ctx.Request.Context(), token); err != nil {
+		log.Println("c logout: ", err)
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Logout Failed",
 			Success: false,
-			Error:   "Internal Server Error",
+			Error:   "Internal() Server Error",
 		})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: "Logout Success",
 		Success: true,

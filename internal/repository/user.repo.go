@@ -94,11 +94,11 @@ func (u *UserRepository) EditPassword(ctx context.Context, id int, hashedPasswor
 	return err
 }
 
-func (u *UserRepository) CheckPin(ctx context.Context, id int) (model.UserPin, error) {
+func (u *UserRepository) CheckPin(ctx context.Context, id int) (*string, error) {
 	sql := `SELECT pin FROM users WHERE id = $1;`
-	var user model.UserPin
-	if err := u.db.QueryRow(ctx, sql, id).Scan(&user.Pin); err != nil {
-		return model.UserPin{}, err
+	var user *string
+	if err := u.db.QueryRow(ctx, sql, id).Scan(&user); err != nil {
+		return user, err
 	}
 	return user, nil
 }

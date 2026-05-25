@@ -17,5 +17,5 @@ func InitRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	RegisterAuthRouter(router, db)
 	RegisterUserRouter(router, db, rdb)
-	RegisterTransactionRouter(router, db)
+	RegisterTransactionRouter(router, db, rdb)
 }

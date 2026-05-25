@@ -1,5 +1,6 @@
 http
 tmp
+docs
 
 public/docs/*
 public/img/*

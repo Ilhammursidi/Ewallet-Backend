@@ -13,9 +13,9 @@ import (
 )
 
 func VerifyToken(ctx *gin.Context) {
-	log.Println("VerifyToken dipanggil") // tambah ini
+	log.Println("VerifyToken dipanggil")
 	bearerToken := ctx.GetHeader("Authorization")
-	log.Println("bearerToken:", bearerToken) // tambah ini
+	log.Println("bearerToken:", bearerToken)
 	if bearerToken == "" {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized access, please login",
@@ -49,7 +49,7 @@ func VerifyToken(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
-			Error:   "Internal Server Error",
+			Error:   "Internal (veirfy)Server Error",
 		})
 		return
 	}

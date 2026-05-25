@@ -105,7 +105,7 @@ func (u *UserController) GetDashboardInfo(ctx *gin.Context) {
 //	@Param			fullname	formData	string	false	"Full name"
 //	@Param			phone		formData	string	false	"Phone number"
 //	@Param			photo		formData	file	false	"Profile photo (jpg, jpeg, png, webp, max 2MB)"
-//	@Success		200		{object}	dto.Response		"Profile updated successfully"
+//	@Success		200		{object}	dto.UserProfileResponse		"Profile updated successfully"
 //	@Failure		400		{object}	dto.ErrorResponse	"Bad Request"
 //	@Failure		500		{object}	dto.ErrorResponse	"Internal Server Error"
 //	@Router			/users/profile [patch]
@@ -126,7 +126,7 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 	var photoPath *string
 
 	if body.Photo_path != nil {
-		const maxUploadSize = 1024 * 1024
+		const maxUploadSize = 2 * 1024 * 1024
 		if body.Photo_path.Size > maxUploadSize {
 			ctx.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
 				Message: "File too large",
@@ -186,41 +186,6 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 	})
 }
 
-// func (u *UserController) EditUserProfile(ctx *gin.Context) {
-// 	token, _ := ctx.Get("claims")
-// 	claims := token.(*pkg.Claims)
-// 	var body dto.EditProfileRequest
-// 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
-// 		log.Println(err.Error())
-// 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-// 			Message: "internal error",
-// 			Success: false,
-// 			Error:   "internal server error",
-// 		})
-// 		return
-// 	}
-// 	data, err := u.userService.EditProfile(ctx.Request.Context(), claims.Id, body)
-// 	if err != nil {
-// 		log.Println(err.Error())
-// 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-// 			Message: "internal error",
-// 			Success: false,
-// 			Error:   "internal server error",
-// 		})
-// 		return
-// 	}
-// 	ctx.JSON(http.StatusCreated, dto.Response{
-// 		Message: "Profile updated successfully",
-// 		Success: true,
-// 		Data: dto.UserProfileResponse{
-// 			Fullname:     data.Fullname,
-// 			Email:        data.Email,
-// 			Photo_path:   data.Photo_path,
-// 			Phone_number: data.Phone_number,
-// 		},
-// 	})
-// }
-
 // Edit User Pin
 //
 //		@Summary		Change User PIN
@@ -269,7 +234,7 @@ func (u *UserController) EditUserPin(ctx *gin.Context) {
 //	@Tags			users
 //	@Accept			json
 //	@Produce		json
-//	@Secutiry		ApiKeyAuth
+//	@Security		ApiKeyAuth
 //	@Param			body			body		dto.EditPasswordRequest		true	"Old and New password payload"
 //	@Success		201				{object}	dto.Response			"Password updated successfully"
 //	@Failure		500				{object}	dto.ErrorResponse			"Internal Server Error"
@@ -330,9 +295,7 @@ func (u *UserController) CheckPin(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: "Check PIN success",
 		Success: true,
-		Data: dto.CheckPinResponse{
-			Pin: data.Pin,
-		},
+		Data:    data,
 	})
 }
 

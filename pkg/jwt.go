@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"errors"
+	"log"
 	"os"
 	"time"
 
@@ -39,27 +40,27 @@ func (c *Claims) VerifyJWT(token string) error {
 	if jwtSecret == "" {
 		return errors.New("missing jwt secret")
 	}
-	// log.Println("Token", token)
+	log.Println("Token", token)
 	jwtToken, err := jwt.ParseWithClaims(token, c, func(t *jwt.Token) (any, error) {
 		return []byte(jwtSecret), nil
 	})
-	// log.Println("checkpoint 1")
+	log.Println("checkpoint 1")
 	if err != nil {
 		return err
 	}
 
-	// log.Println("checkpoint 2")
+	log.Println("checkpoint 2")
 	if !jwtToken.Valid {
 		return jwt.ErrTokenExpired
 	}
 
-	// log.Println("checkpoint 3")
+	log.Println("checkpoint 3")
 	iss, err := jwtToken.Claims.GetIssuer()
 	if err != nil {
 		return err
 	}
 
-	// log.Println("checkpoint")
+	log.Println("checkpoint")
 	if iss != os.Getenv("JWT_ISSUER") {
 		return jwt.ErrTokenInvalidIssuer
 	}

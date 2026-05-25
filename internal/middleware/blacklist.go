@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -9,18 +10,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Blacklist(blacklistRepo *repository.BlacklistRepository) gin.HandlerFunc {
+func Blacklist(authRepo *repository.AuthRepository) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		bearerToken := ctx.GetHeader("Authorization")
+		// log.Println("ini", bearerToken)
 		token := strings.Split(bearerToken, " ")[1]
 
 		// cek blacklist
-		isBlacklist, err := blacklistRepo.IsBlacklist(ctx.Request.Context(), token)
+		isBlacklist, err := authRepo.IsBlacklist(ctx.Request.Context(), token)
+		log.Println("isblack", isBlacklist)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{
 				Message: "Error",
 				Success: false,
-				Error:   "Internal Server Error",
+				Error:   "Internal(middleware1) Server Error",
 			})
 			return
 		}

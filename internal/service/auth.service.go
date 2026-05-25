@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
@@ -68,5 +69,6 @@ func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin
 }
 
 func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
+	log.Println("service :", token)
 	return a.blacklistRepo.AddToBlackList(ctx, token)
 }

@@ -20,6 +20,11 @@ const docTemplate = `{
     "paths": {
         "/auth/enter-pin": {
             "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Create PIN for user account",
                 "consumes": [
                     "application/json"
@@ -382,7 +387,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Profile updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.Response"
+                            "$ref": "#/definitions/dto.UserProfileResponse"
                         }
                     },
                     "400": {
@@ -402,6 +407,11 @@ const docTemplate = `{
         },
         "/users/profile/change-password": {
             "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Change current password to a new password for account security",
                 "consumes": [
                     "application/json"
@@ -766,6 +776,23 @@ const docTemplate = `{
                     "example": "123456"
                 }
             }
+        },
+        "dto.UserProfileResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "fullname": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "photo": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -784,8 +811,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8081",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Backend koda 7",
-	Description:      "Backend created by Koda using Gin",
+	Title:            "Ewallet-Backend",
+	Description:      "Backend created by ilhammursidi using Gin",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

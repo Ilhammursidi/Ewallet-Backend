@@ -90,7 +90,7 @@ func (u *UserService) CheckUserPin(ctx context.Context, id int) (dto.CheckPinRes
 		return dto.CheckPinResponse{}, err
 	}
 	return dto.CheckPinResponse{
-		Pin: user.Pin,
+		HasPin: user != nil,
 	}, nil
 }
 
