@@ -30,5 +30,6 @@ type SetPin struct {
 
 // @name LoginResponse
 type LoginResponse struct {
-	Token string `json:"token" example:"token..."`
+	Token  string `json:"token" example:"token..."`
+	HasPin bool   `json:"has_pin" example:"false"`
 }
