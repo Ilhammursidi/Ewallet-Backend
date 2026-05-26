@@ -20,6 +20,6 @@ func RegisterAuthRouter(router *gin.Engine, db *pgxpool.Pool) {
 
 	authRouter.POST("/register", authController.Register)
 	authRouter.POST("/login", authController.Login)
-	authRouter.PATCH("/enter-pin", middleware.VerifyToken, authController.CreatePin)
+	authRouter.PATCH("/enter-pin", middleware.Blacklist(authRepo), middleware.VerifyToken, authController.CreatePin)
 	authRouter.POST("/logout", middleware.Blacklist(authRepo), middleware.VerifyToken, authController.Logout)
 }

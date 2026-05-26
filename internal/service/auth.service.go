@@ -70,5 +70,5 @@ func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin
 
 func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
 	log.Println("service :", token)
-	return a.blacklistRepo.AddToBlackList(ctx, token)
+	return a.authRepo.AddToBlackList(ctx, token)
 }

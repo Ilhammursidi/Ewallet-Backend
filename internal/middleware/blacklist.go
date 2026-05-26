@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -18,8 +19,11 @@ func Blacklist(authRepo *repository.AuthRepository) gin.HandlerFunc {
 
 		// cek blacklist
 		isBlacklist, err := authRepo.IsBlacklist(ctx.Request.Context(), token)
+		fmt.Println("checkpoin", isBlacklist)
+
 		log.Println("isblack", isBlacklist)
 		if err != nil {
+			log.Println("Error :", err.Error())
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{
 				Message: "Error",
 				Success: false,

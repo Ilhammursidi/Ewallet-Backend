@@ -12,13 +12,13 @@ import (
 
 func RegisterTransactionRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
 
-	// authRepo := repository.NewAuthRepository(db)
+	authRepo := repository.NewAuthRepository(db)
 	transactionRepo := repository.NewTransactionRepo(db)
 
 	transactionService := service.NewTransactionService(transactionRepo, db, rdb)
 	transactionController := controller.NewTransactionController(transactionService)
 
-	transactionRouter := router.Group("/transaction", middleware.VerifyToken)
+	transactionRouter := router.Group("/transaction", middleware.Blacklist(authRepo), middleware.VerifyToken)
 
-	transactionRouter.GET("/receivers", transactionController.FindReceivers)
+	transactionRouter.GET("/receivers", middleware.Blacklist(authRepo), transactionController.FindReceivers)
 }
