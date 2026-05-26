@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"log"
 
 	"github.com/ewallet-backend/internal/dto"
@@ -57,10 +56,6 @@ func (a *AuthService) LoginUser(ctx context.Context, user dto.NewUser) (string, 
 }
 
 func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin) error {
-	if body.Pin != body.ConfirmPin {
-		return errors.New("pin and pin confirmation are not the same")
-	}
-
 	var hc pkg.HashConfig
 	hc.UseRecommended()
 	hashedPin := hc.GenHash(body.Pin)

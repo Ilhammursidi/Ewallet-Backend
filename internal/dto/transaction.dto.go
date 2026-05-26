@@ -10,8 +10,12 @@ type ReceiverResponse struct {
 
 // @name PaginationMetaResponse
 type PaginationMetaResponse struct {
-	Page  int `json:"page"`
-	Limit int `json:"limit"`
+	Page       int    `json:"page"`
+	Limit      int    `json:"limit"`
+	Total_Data int    `json:"total_data"`
+	Total_Page int    `json:"total_page"`
+	Next_Page  string `json:"next_page"`
+	Prev_Page  string `json:"prev_page"`
 }
 
 // @name ReceiverListResponse

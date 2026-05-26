@@ -20,5 +20,5 @@ func RegisterTransactionRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.
 
 	transactionRouter := router.Group("/transaction", middleware.Blacklist(authRepo), middleware.VerifyToken)
 
-	transactionRouter.GET("/receivers", middleware.Blacklist(authRepo), transactionController.FindReceivers)
+	transactionRouter.GET("/receivers", transactionController.FindReceivers)
 }

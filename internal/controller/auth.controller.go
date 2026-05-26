@@ -56,7 +56,7 @@ func (a *AuthController) Register(ctx *gin.Context) {
 	}
 	log.Println("response data", res)
 	ctx.JSON(http.StatusCreated, dto.Response{
-		Data:    res,
+		Data:    "",
 		Message: "Register Success",
 		Success: true,
 	})

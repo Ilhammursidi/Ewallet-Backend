@@ -763,14 +763,9 @@ const docTemplate = `{
         "dto.SetPin": {
             "type": "object",
             "required": [
-                "confirm_pin",
                 "pin"
             ],
             "properties": {
-                "confirm_pin": {
-                    "type": "string",
-                    "example": "123456"
-                },
                 "pin": {
                     "type": "string",
                     "example": "123456"

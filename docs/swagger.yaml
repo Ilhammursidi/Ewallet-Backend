@@ -102,14 +102,10 @@ definitions:
     type: object
   dto.SetPin:
     properties:
-      confirm_pin:
-        example: "123456"
-        type: string
       pin:
         example: "123456"
         type: string
     required:
-    - confirm_pin
     - pin
     type: object
   dto.UserProfileResponse:

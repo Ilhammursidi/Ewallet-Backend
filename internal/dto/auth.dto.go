@@ -25,8 +25,7 @@ type NewUser struct {
 
 // @name SetPin
 type SetPin struct {
-	Pin        string `json:"pin" binding:"required,len=6" example:"123456"`
-	ConfirmPin string `json:"confirm_pin" binding:"required,len=6" example:"123456"`
+	Pin string `json:"pin" binding:"required,len=6" example:"123456"`
 }
 
 // @name LoginResponse

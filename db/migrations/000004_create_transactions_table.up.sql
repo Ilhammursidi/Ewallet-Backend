@@ -1,7 +1,3 @@
-CREATE TYPE cashflow_type AS ENUM ('income','expense');
-CREATE TYPE transaction_type AS ENUM ('TOPUP', 'TRANSFER_IN', 'TRANSFER_OUT');
-CREATE TYPE transaction_status AS ENUM ('PENDING','SUCCESS','FAILED');
-
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
