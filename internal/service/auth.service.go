@@ -55,6 +55,10 @@ func (a *AuthService) LoginUser(ctx context.Context, user dto.NewUser) (string, 
 	return token, nil
 }
 
+func (a *AuthService) CekPinUser(ctx context.Context, email string) (bool, error) {
+	return a.authRepo.CekPinUser(ctx, email)
+}
+
 func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin) error {
 	var hc pkg.HashConfig
 	hc.UseRecommended()
