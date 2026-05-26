@@ -20,6 +20,17 @@ func NewAuthRepository(db *pgxpool.Pool) *AuthRepository {
 	}
 }
 
+func (a *AuthRepository) CekPinUser(ctx context.Context, email string) (bool, error) {
+	sql := "SELECT pin FROM users WHERE email = $1"
+	var result string
+	err := a.db.QueryRow(ctx, sql, email).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+
+}
+
 func (a *AuthRepository) NewUser(ctx context.Context, email, hashedPwd string) (model.User, error) {
 	sql := "WITH register AS (INSERT INTO Users (email,password) VALUES ($1,$2) RETURNING id, email, created_at), create_wallet AS (INSERT INTO wallet (user_id) SELECT id FROM register) SELECT id, email, created_at FROM register"
 
