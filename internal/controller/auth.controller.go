@@ -31,6 +31,7 @@ func NewAuthController(authService *service.AuthService) *AuthController {
 //	@Produce		json
 //	@Param 			body body dto.NewUser true "register payload"
 //	@Success		201	{object}	dto.Response
+//	@Failure 		409 {object}	dto.ErrorResponse
 //	@Failure		500	{object}	dto.ErrorResponse
 //	@Router			/auth/register [post]
 func (a *AuthController) Register(ctx *gin.Context) {
@@ -47,10 +48,10 @@ func (a *AuthController) Register(ctx *gin.Context) {
 	res, err := a.authService.RegisterUser(ctx.Request.Context(), body)
 	if err != nil {
 		log.Println("Error: ", err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+		ctx.JSON(http.StatusConflict, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
-			Error:   "Email already register",
+			Error:   "Email already registered",
 		})
 		return
 	}
@@ -70,8 +71,9 @@ func (a *AuthController) Register(ctx *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param 			body body dto.NewUser true "login payload"
-//	@Success		200	{object}	dto.Response
-//	@Failure		500	{object}	dto.ErrorResponse
+//	@Success		200	{object}	dto.Response         "Login Success"
+//	@Failure		500	{object}	dto.ErrorResponse	"Internal Server Error"
+//	@Failure		401	{object}	dto.ErrorResponse	"Invalid Email or Password"
 //	@Router			/auth/login [post]
 func (a *AuthController) Login(ctx *gin.Context) {
 	var body dto.NewUser
@@ -87,17 +89,19 @@ func (a *AuthController) Login(ctx *gin.Context) {
 	token, err := a.authService.LoginUser(ctx.Request.Context(), body)
 	if err != nil {
 		log.Println("Error: ", err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Error",
 			Success: false,
 			Error:   "Invalid email or password",
 		})
 		return
 	}
-	log.Println("response data", token)
+	hasPin, err := a.authService.CekPinUser(ctx.Request.Context(), body.Email)
+	log.Println("haspin cont", hasPin)
 	ctx.JSON(http.StatusOK, dto.Response{
 		Data: dto.LoginResponse{
-			Token: token,
+			Token:  token,
+			HasPin: hasPin,
 		},
 		Message: "Login Success",
 		Success: true,
@@ -113,9 +117,9 @@ func (a *AuthController) Login(ctx *gin.Context) {
 //		@Produce		json
 //	    @security       ApiKeyAuth
 //		@Param 			body body dto.SetPin true "set PIN payload"
-//		@Success		201	{object}	dto.Response
-//		@Failure		401 {object}	dto.ErrorResponse
-//		@Failure		400	{object}	dto.ErrorResponse
+//		@Success		201	{object}	dto.Response       "Create PIN Success"
+//		@Failure		401 {object}	dto.ErrorResponse	"Invalid Token Claims","User not found"
+//		@Failure		400	{object}	dto.ErrorResponse	"validation error"
 //		@Router			/auth/enter-pin [patch]
 func (a *AuthController) CreatePin(ctx *gin.Context) {
 	claims, exists := ctx.Get("claims")
@@ -125,7 +129,7 @@ func (a *AuthController) CreatePin(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized",
 			Success: false,
-			Error:   "user tidak ditemukan",
+			Error:   "User Not Found",
 		})
 		return
 	}
