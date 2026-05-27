@@ -21,10 +21,10 @@ type EditProfileRequest struct {
 
 // @name EditProfileResponse
 type EditProfileResponse struct {
-	Fullname     *string `json:"fullname"`
-	Email        string  `json:"email"`
-	Phone_number *string `json:"phone"`
-	Photo_path   *string `json:"photo"`
+	Fullname     string `json:"fullname"`
+	Email        string `json:"email"`
+	Phone_number string `json:"phone"`
+	Photo_path   string `json:"photo"`
 }
 
 // @name EditUserPinRequest
@@ -90,5 +90,19 @@ type GetTransactionHistory struct {
 	Description       string    `json:"transfer_description"`
 	ReceiverName      string    `json:"receiver_name"`
 	PaymentMethodName string    `json:"payment_method_name"`
+	TotalCount        int       `json:"total_count"`
+}
+
+type TransactionHistoryDTO struct {
+	TransactionID     int       `json:"transaction_id"`
+	Amount            int       `json:"amount"`
+	Type              string    `json:"type"`
+	FlowType          *string   `json:"flow_type"`
+	Status            string    `json:"status"`
+	CreatedAt         time.Time `json:"created_at"`
+	PaymentMethodName string    `json:"payment_method_name"`
+	ReceiverID        *int      `json:"receiver_id"`
+	ReceiverName      string    `json:"receiver_name"`
+	SenderName        string    `json:"sender_name"`
 	TotalCount        int       `json:"total_count"`
 }

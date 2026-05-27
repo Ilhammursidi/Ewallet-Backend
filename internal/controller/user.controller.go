@@ -114,6 +114,7 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 	claims := token.(*pkg.Claims)
 
 	var body dto.EditProfileRequest
+
 	if err := ctx.ShouldBind(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "invalid request",
@@ -126,7 +127,9 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 	var photoPath *string
 
 	if body.Photo_path != nil {
+
 		const maxUploadSize = 2 * 1024 * 1024
+
 		if body.Photo_path.Size > maxUploadSize {
 			ctx.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
 				Message: "File too large",
@@ -134,38 +137,60 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 			})
 			return
 		}
-	} else {
-		// Berikan respons error jika foto wajib diisi, atau lewati jika opsional
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah"})
-		return
+
+		ext := strings.ToLower(
+			filepath.Ext(body.Photo_path.Filename),
+		)
+
+		allowedExt := map[string]bool{
+			".jpg":  true,
+			".jpeg": true,
+			".png":  true,
+		}
+
+		if !allowedExt[ext] {
+			ctx.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+				Message: "Invalid file format",
+				Success: false,
+			})
+			return
+		}
+
+		filename := fmt.Sprintf(
+			"user_%d%s",
+			time.Now().UnixNano(),
+			ext,
+		)
+
+		dst := filepath.Join(
+			"public",
+			"img",
+			"profiles",
+			filename,
+		)
+
+		if err := ctx.SaveUploadedFile(body.Photo_path, dst); err != nil {
+			ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Message: "Failed to save image",
+				Success: false,
+			})
+			return
+		}
+
+		generatedURL := "img/profiles/" + filename
+		photoPath = &generatedURL
 	}
 
-	ext := strings.ToLower(filepath.Ext(body.Photo_path.Filename))
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		ctx.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
-			Message: "Invalid file format",
-			Success: false,
-		})
-		return
-	}
+	data, err := u.userService.EditProfile(
+		ctx.Request.Context(),
+		claims.Id,
+		body,
+		photoPath,
+	)
 
-	filename := fmt.Sprintf("user_%d%s", time.Now().UnixNano(), ext)
-	dst := filepath.Join("public", "img", "profiles", filename)
-
-	if err := ctx.SaveUploadedFile(body.Photo_path, dst); err != nil {
-		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Failed to save image",
-			Success: false,
-		})
-		return
-	}
-
-	generatedURL := "img/profile" + filename
-	photoPath = &generatedURL
-
-	data, err := u.userService.EditProfile(ctx.Request.Context(), claims.Id, body, photoPath)
 	if err != nil {
 		log.Println(err.Error())
+
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "internal error",
 			Success: false,
@@ -177,12 +202,7 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: "Profile updated successfully",
 		Success: true,
-		Data: dto.UserProfileResponse{
-			Fullname:     *data.Fullname,
-			Email:        data.Email,
-			Photo_path:   *data.Photo_path,
-			Phone_number: *data.Phone_number,
-		},
+		Data:    data,
 	})
 }
 
@@ -268,37 +288,6 @@ func (u *UserController) EditPassword(ctx *gin.Context) {
 	})
 }
 
-// Check Pin
-//
-//		@Summary		Check PIN Status
-//		@Description	Verify whether the user has already set a transaction PIN or not
-//		@Tags			users
-//		@Accept			json
-//		@Produce		json
-//	    @Security		ApiKeyAuth
-//		@Success		200	{object}	dto.Response	"Success check PIN"
-//		@Failure		500	{object}	dto.ErrorResponse					"Internal Server Error"
-//		@Router			/users/check-pin [get]
-func (u *UserController) CheckPin(ctx *gin.Context) {
-	token, _ := ctx.Get("claims")
-	claims := token.(*pkg.Claims)
-	data, err := u.userService.CheckUserPin(ctx.Request.Context(), claims.Id)
-	if err != nil {
-		log.Println(err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "internal error",
-			Success: false,
-			Error:   "internal server error",
-		})
-		return
-	}
-	ctx.JSON(http.StatusOK, dto.Response{
-		Message: "Check PIN success",
-		Success: true,
-		Data:    data,
-	})
-}
-
 // Get Transaction Report
 //
 //		@Summary		Get Transaction Report
@@ -311,20 +300,54 @@ func (u *UserController) CheckPin(ctx *gin.Context) {
 //		@Success		200	{object}	dto.Response		"Get Data Successs"
 //		@Failure		500	{object}	dto.ErrorResponse	"Internal Server Error"
 //		@Router			/users/transaction-report [get]
-func (u *UserController) TransactionReportGraph(ctx *gin.Context) {
-	token, _ := ctx.Get("claims")
-	claims := token.(*pkg.Claims)
-	var body dto.TransactionReportRequest
-	if err := ctx.ShouldBindQuery(&body); err != nil {
-		response.JSONBadRequest(ctx)
+func (uc *UserController) TransactionReportGraph(ctx *gin.Context) {
+	token, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Claims not exists",
+			Success: false,
+			Error:   "Unauthorized",
+		})
 		return
 	}
-	data, err := u.userService.GetTransactionReport(ctx.Request.Context(), claims.Id, body)
+
+	claims, ok := token.(*pkg.Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Error Unauthorized",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	timePeriod := ctx.DefaultQuery("period", "week")
+
+	data, err := uc.userService.GetTransactionReport(ctx.Request.Context(), claims.Id, dto.TransactionReportRequest{
+		Period: timePeriod,
+	})
 	if err != nil {
-		response.JSONInternalServerError(ctx)
+		if strings.Contains(err.Error(), "invalid period") {
+			ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Message: err.Error(),
+				Success: false,
+				Error:   "Bad Request",
+			})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: err.Error(),
+			Success: false,
+			Error:   "Internal Server Error",
+		})
 		return
 	}
-	response.JSONSuccess(ctx, data, "Get Data Success")
+
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Transaction report retrieved successfully",
+		Success: true,
+		Data:    data,
+	})
 }
 
 // GetTransactionHistory
@@ -342,19 +365,42 @@ func (u *UserController) TransactionReportGraph(ctx *gin.Context) {
 // @Failure      500     {object}  dto.Response
 // @Router       /users/transactions [get]
 func (u *UserController) GetTransactionHistory(ctx *gin.Context) {
-	token, _ := ctx.Get("claims")
-	claims := token.(*pkg.Claims)
+	token, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Claims not exists",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	claims, ok := token.(*pkg.Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Error Unauthorized",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
 	var body dto.TransactionHistoryRequest
 	if err := ctx.ShouldBindQuery(&body); err != nil {
 		response.JSONBadRequest(ctx)
 		return
 	}
+
 	data, metaData, err := u.userService.TransactionHistory(ctx.Request.Context(), claims.Id, body)
 	if err != nil {
-		response.JSONInternalServerError(ctx)
+		log.Println("TransactionHistory error:", err)
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: err.Error(),
+			Success: false,
+			Error:   "Internal Server Error",
+		})
 		return
 	}
-	log.Println(data)
-	log.Println(metaData)
+
 	response.SuccessWithMetaData(ctx, 200, "Get data success", data, metaData)
 }

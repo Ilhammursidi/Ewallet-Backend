@@ -97,4 +97,119 @@ func (tc *TransactionController) FindReceivers(ctx *gin.Context) {
 	})
 }
 
-// func (tc *TransactionController) CreateTopUp
+// TopUp godoc
+// @Summary      Top up wallet balance
+// @Description  Add balance to user's wallet using a payment method
+// @Tags         transaction
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        request  body      dto.TopUpHTTPRequest  true  "Top up request payload"
+// @Success      201      {object}  dto.TopUpResponse     "Top up successful"
+// @Failure      400      {object}  dto.ErrorResponse     "Invalid request body or amount"
+// @Failure      401      {object}  dto.ErrorResponse     "Unauthorized"
+// @Failure      500      {object}  dto.ErrorResponse     "Internal server error"
+// @Router       /transaction/topup [post]
+func (tc *TransactionController) TopUp(ctx *gin.Context) {
+	token, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Claims not exists",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	claims, ok := token.(*pkg.Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Error Unauthorized",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	var req dto.TopUpHTTPRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "invalid request body",
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	result, err := tc.transactionService.TopUp(ctx.Request.Context(), dto.TopUpServiceRequest{
+		UserID:          claims.Id,
+		PaymentMethodID: req.PaymentMethodID,
+		OrderAmount:     req.OrderAmount,
+		TaxAmount:       req.TaxAmount,
+		DeliveryFee:     req.DeliveryFee,
+	})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: err.Error(),
+			Success: false,
+			Error:   "Internal Server Error",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, result)
+}
+
+// Transfer godoc
+// @Summary      Transfer balance to another wallet
+// @Description  Transfer balance from sender wallet to receiver wallet
+// @Tags         transaction
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        request  body      dto.TransferHTTPRequest  true  "Transfer request payload"
+// @Success      201      {object}  dto.TransferResponse     "Transfer successful"
+// @Failure      400      {object}  dto.ErrorResponse        "Invalid request or insufficient balance"
+// @Failure      401      {object}  dto.ErrorResponse        "Unauthorized"
+// @Failure      500      {object}  dto.ErrorResponse        "Internal server error"
+// @Router       /transaction/transfer [post]
+func (tc *TransactionController) Transfer(ctx *gin.Context) {
+	token, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Claims not exists",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	claims, ok := token.(*pkg.Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Error Uanuthorized",
+			Success: false,
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	var req dto.TransferHTTPRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{Message: "invalid request body"})
+		return
+	}
+
+	result, err := tc.transactionService.Transfer(ctx.Request.Context(), dto.TransferServiceRequest{
+		UserID:     claims.Id,
+		ReceiverID: req.ReceiverID,
+		Amount:     req.Amount,
+	})
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{Message: err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, result)
+}

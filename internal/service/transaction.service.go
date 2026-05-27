@@ -76,3 +76,137 @@ func (ts *TransactionService) FindReceivers(ctx context.Context, userId int, sea
 		},
 	}, nil
 }
+
+func (ts *TransactionService) TopUp(ctx context.Context, req dto.TopUpServiceRequest) (*dto.TopUpResponse, error) {
+	totalAmount := req.OrderAmount + req.TaxAmount + req.DeliveryFee
+	creditAmount := req.OrderAmount - req.TaxAmount - req.DeliveryFee
+
+	if creditAmount <= 0 {
+		return nil, fmt.Errorf("order_amount too small to cover tax and delivery fee")
+	}
+
+	tx, err := ts.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	walletID, err := ts.transactionRepository.GetWalletByUserID(ctx, tx, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("TopUp - get wallet: %w", err)
+	}
+
+	transactionID, err := ts.transactionRepository.CreateTransaction(ctx, tx, dto.CreateTransactionParams{
+		UserID:           req.UserID,
+		ReceiverWalletID: walletID,
+		PaymentMethodID:  req.PaymentMethodID,
+		Amount:           totalAmount,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("TopUp - create transaction: %w", err)
+	}
+
+	detailID, err := ts.transactionRepository.CreateTopUpDetail(ctx, tx, dto.CreateTopUpDetailParams{
+		TransactionID:   transactionID,
+		WalletID:        walletID,
+		PaymentMethodID: req.PaymentMethodID,
+		OrderAmount:     req.OrderAmount,
+		TaxAmount:       req.TaxAmount,
+		DeliveryFee:     req.DeliveryFee,
+		TotalAmount:     totalAmount,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("TopUp - create detail: %w", err)
+	}
+
+	if err := ts.transactionRepository.CreditWallet(ctx, tx, walletID, creditAmount); err != nil {
+		return nil, fmt.Errorf("TopUp - credit wallet: %w", err)
+	}
+
+	if err := ts.transactionRepository.UpdateTopUpStatus(ctx, tx, transactionID, dto.StatusSuccess); err != nil {
+		return nil, fmt.Errorf("TopUp - update status: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("TopUp - commit: %w", err)
+	}
+
+	return &dto.TopUpResponse{
+		TransactionID: transactionID,
+		TopUpDetailID: detailID,
+		TotalAmount:   totalAmount,
+		CreditAmount:  creditAmount,
+		Status:        dto.StatusSuccess,
+	}, nil
+}
+
+func (ts *TransactionService) Transfer(ctx context.Context, req dto.TransferServiceRequest) (*dto.TransferResponse, error) {
+	tx, err := ts.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	senderWalletID, err := ts.transactionRepository.GetWalletByUserID(ctx, tx, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("Transfer - get sender wallet: %w", err)
+	}
+
+	receiverWalletID, err := ts.transactionRepository.GetWalletByUserID(ctx, tx, req.ReceiverID)
+	if err != nil {
+		return nil, fmt.Errorf("Transfer - get receiver wallet: %w", err)
+	}
+
+	if senderWalletID == receiverWalletID {
+		return nil, fmt.Errorf("cannot transfer to yourself")
+	}
+
+	balance, err := ts.transactionRepository.GetWalletBalance(ctx, tx, senderWalletID)
+	if err != nil {
+		return nil, fmt.Errorf("Transfer - get balance: %w", err)
+	}
+	if balance < req.Amount {
+		return nil, fmt.Errorf("insufficient balance: have %d, need %d", balance, req.Amount)
+	}
+
+	transferOutID, err := ts.transactionRepository.CreateTransferOut(ctx, tx, dto.CreateTransferParams{
+		UserID:           req.UserID,
+		SenderWalletID:   senderWalletID,
+		ReceiverWalletID: receiverWalletID,
+		Amount:           req.Amount,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Transfer - create transfer out: %w", err)
+	}
+
+	_, err = ts.transactionRepository.CreateTransferIn(ctx, tx, dto.CreateTransferParams{
+		UserID:           req.ReceiverID,
+		SenderWalletID:   senderWalletID,
+		ReceiverWalletID: receiverWalletID,
+		Amount:           req.Amount,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Transfer - create transfer in: %w", err)
+	}
+
+	if err := ts.transactionRepository.CreateTransferDetail(ctx, tx, transferOutID, senderWalletID, receiverWalletID); err != nil {
+		return nil, fmt.Errorf("Transfer - create detail: %w", err)
+	}
+
+	if err := ts.transactionRepository.DebitWallet(ctx, tx, senderWalletID, req.Amount); err != nil {
+		return nil, fmt.Errorf("Transfer - debit wallet: %w", err)
+	}
+	if err := ts.transactionRepository.CreditWallet(ctx, tx, receiverWalletID, req.Amount); err != nil {
+		return nil, fmt.Errorf("Transfer - credit wallet: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("Transfer - commit: %w", err)
+	}
+
+	return &dto.TransferResponse{
+		TransactionID: transferOutID,
+		Amount:        req.Amount,
+		Status:        dto.StatusSuccess,
+	}, nil
+}

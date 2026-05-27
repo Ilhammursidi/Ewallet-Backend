@@ -108,6 +108,66 @@ definitions:
     required:
     - pin
     type: object
+  dto.TopUpHTTPRequest:
+    properties:
+      delivery_fee:
+        minimum: 0
+        type: integer
+      order_amount:
+        minimum: 1
+        type: integer
+      payment_method_id:
+        type: integer
+      tax_amount:
+        minimum: 0
+        type: integer
+    required:
+    - order_amount
+    - payment_method_id
+    type: object
+  dto.TopUpResponse:
+    properties:
+      credit_amount:
+        type: integer
+      status:
+        $ref: '#/definitions/dto.TransactionStatus'
+      topup_detail_id:
+        type: integer
+      total_amount:
+        type: integer
+      transaction_id:
+        type: integer
+    type: object
+  dto.TransactionStatus:
+    enum:
+    - PENDING
+    - SUCCESS
+    - FAILED
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusSuccess
+    - StatusFailed
+  dto.TransferHTTPRequest:
+    properties:
+      amount:
+        minimum: 1
+        type: integer
+      receiver_id:
+        type: integer
+    required:
+    - amount
+    - receiver_id
+    type: object
+  dto.TransferResponse:
+    properties:
+      amount:
+        type: integer
+      status:
+        $ref: '#/definitions/dto.TransactionStatus'
+      transaction_id:
+        type: integer
+    type: object
   dto.UserProfileResponse:
     properties:
       email:
@@ -144,15 +204,15 @@ paths:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Create PIN Success
           schema:
             $ref: '#/definitions/dto.Response'
         "400":
-          description: Bad Request
+          description: validation error
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Invalid Token Claims","User not found
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
       security:
@@ -176,9 +236,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Login Success
           schema:
             $ref: '#/definitions/dto.Response'
+        "401":
+          description: Invalid Email or Password
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -226,6 +290,10 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/dto.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -273,27 +341,78 @@ paths:
       summary: Find Receivers
       tags:
       - transaction
-  /users/check-pin:
-    get:
+  /transaction/topup:
+    post:
       consumes:
       - application/json
-      description: Verify whether the user has already set a transaction PIN or not
+      description: Add balance to user's wallet using a payment method
+      parameters:
+      - description: Top up request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TopUpHTTPRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: Success check PIN
+        "201":
+          description: Top up successful
           schema:
-            $ref: '#/definitions/dto.Response'
+            $ref: '#/definitions/dto.TopUpResponse'
+        "400":
+          description: Invalid request body or amount
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Check PIN Status
+      summary: Top up wallet balance
       tags:
-      - users
+      - transaction
+  /transaction/transfer:
+    post:
+      consumes:
+      - application/json
+      description: Transfer balance from sender wallet to receiver wallet
+      parameters:
+      - description: Transfer request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TransferHTTPRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Transfer successful
+          schema:
+            $ref: '#/definitions/dto.TransferResponse'
+        "400":
+          description: Invalid request or insufficient balance
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Transfer balance to another wallet
+      tags:
+      - transaction
   /users/dashboard:
     get:
       consumes:

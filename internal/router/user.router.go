@@ -12,18 +12,17 @@ import (
 
 func RegisterUserRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
 	authRepo := repository.NewAuthRepository(db)
-	userRouter := router.Group("/users", middleware.Blacklist(authRepo), middleware.VerifyToken)
 
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo, rdb)
 	userController := controller.NewUserController(userService)
+	userRouter := router.Group("/users", middleware.Blacklist(authRepo), middleware.VerifyToken)
 
 	userRouter.GET("/dashboard", userController.GetDashboardInfo)
 	userRouter.GET("/profile", userController.GetProfile)
 	userRouter.PATCH("/profile", userController.EditUserProfile)
 	userRouter.PATCH("/profile/change-password", userController.EditPassword)
 	userRouter.PATCH("/profile/change-pin", userController.EditUserPin)
-	userRouter.GET("/check-pin", userController.CheckPin)
 	userRouter.GET("/transaction-report", userController.TransactionReportGraph)
 	userRouter.GET("/transactions", userController.GetTransactionHistory)
 }

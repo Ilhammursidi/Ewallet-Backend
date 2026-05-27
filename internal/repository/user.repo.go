@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -32,28 +33,34 @@ func (u *UserRepository) GetProfileId(ctx context.Context, id int) (model.User, 
 }
 
 func (u *UserRepository) GetMoneyAccountInfo(ctx context.Context, id int) (model.CashFlow, error) {
-	sql := `SELECT w.balance AS balance, SUM(
-	CASE
-    WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS'
-	THEN t.amount
-	ELSE 0
-	END
-) AS income, SUM(
-	CASE
-    WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS'
-	THEN t.amount
-	ELSE 0
-	END
-) AS expense 
-FROM transactions t
-JOIN wallet w ON w.id = t.user_id
-WHERE t.user_id = $1
-GROUP BY w.balance;`
-
-	args := []any{id}
+	sql := `
+        SELECT 
+            w.balance AS balance,
+            SUM(
+                CASE
+                    WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS'
+                    THEN t.amount
+                    ELSE 0
+                END
+            ) AS income,
+            SUM(
+                CASE
+                    WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS'
+                    THEN t.amount
+                    ELSE 0
+                END
+            ) AS expense
+        FROM transactions t
+        JOIN wallet w ON w.user_id = t.user_id
+        WHERE t.user_id = $1
+        GROUP BY w.balance`
 
 	var money model.CashFlow
-	if err := u.db.QueryRow(ctx, sql, args...).Scan(&money.Balance, &money.Expense, &money.Income); err != nil {
+	if err := u.db.QueryRow(ctx, sql, id).Scan(
+		&money.Balance,
+		&money.Income,
+		&money.Expense,
+	); err != nil {
 		return model.CashFlow{}, err
 	}
 	return money, nil
@@ -62,17 +69,18 @@ GROUP BY w.balance;`
 func (u *UserRepository) EditProfile(ctx context.Context, id int, fullname, phone, photo *string) (model.User, error) {
 	sql := `UPDATE users 
     SET 
-        fullname = $2,
-        phone_number = $3,
-        photo_path = $4,
+        fullname = COALESCE($2, fullname),
+        phone_number = COALESCE($3, phone_number),
+        photo_path = COALESCE($4, photo_path),
         updated_at = NOW()
     WHERE id = $1
-    RETURNING fullname, email, phone_number, photo_path`
+	RETURNING id, fullname, phone_number, photo_path;`
+
+	args := []any{id, fullname, phone, photo}
 
 	var user model.User
-	if err := u.db.QueryRow(ctx, sql, id, fullname, phone, photo).Scan(
-		&user.Fullname, &user.Email, &user.Phone_number, &user.Photo_path,
-	); err != nil {
+	err := u.db.QueryRow(ctx, sql, args...).Scan(&user.Id, &user.Fullname, &user.Phone_number, &user.Photo_path)
+	if err != nil {
 		return model.User{}, err
 	}
 	return user, nil
@@ -102,32 +110,97 @@ func (u *UserRepository) CheckPin(ctx context.Context, id int) (*string, error) 
 	}
 	return user, nil
 }
+func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timePeriod string) ([]dto.TransactionReportDTO, error) {
+	var sql string
 
-func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timePeriod string) ([]model.TransactionReport, error) {
-	sql := `SELECT  DATE_TRUNC($2, created_at)::DATE AS period, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income, COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expense
-	FROM transactions
-	WHERE user_id = $1 AND status = 'SUCCESS'
-	GROUP BY DATE_TRUNC($2, created_at)
-	ORDER BY period ASC;
-`
-	args := []any{id, timePeriod}
-	var data []model.TransactionReport
-	rows, err := u.db.Query(ctx, sql, args...)
+	switch timePeriod {
+	case "week":
+		sql = `
+			WITH date_series AS (
+				SELECT generate_series(
+					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE - INTERVAL '6 days',
+					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
+					INTERVAL '1 day'
+				)::DATE AS period
+			)
+			SELECT 
+				ds.period,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_expense
+			FROM date_series ds
+			LEFT JOIN transactions t
+				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
+				AND t.user_id = $1
+			GROUP BY ds.period
+			ORDER BY ds.period ASC`
+
+	case "month":
+		sql = `
+			WITH date_series AS (
+				SELECT generate_series(
+					DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
+					(DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '1 month - 1 day')::DATE,
+					INTERVAL '1 day'
+				)::DATE AS period
+			)
+			SELECT 
+				ds.period,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_expense
+			FROM date_series ds
+			LEFT JOIN transactions t
+				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
+				AND t.user_id = $1
+			GROUP BY ds.period
+			ORDER BY ds.period ASC`
+
+	case "year":
+		sql = `
+			WITH date_series AS (
+				SELECT generate_series(
+					DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
+					(DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '11 months')::DATE,
+					INTERVAL '1 month'
+				)::DATE AS period
+			)
+			SELECT 
+				ds.period,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_expense
+			FROM date_series ds
+			LEFT JOIN transactions t
+				ON DATE_TRUNC('month', t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
+				AND t.user_id = $1
+			GROUP BY ds.period
+			ORDER BY ds.period ASC`
+
+	default:
+		return nil, fmt.Errorf("invalid period: %s (week/month/year)", timePeriod)
+	}
+
+	rows, err := u.db.Query(ctx, sql, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetTransactionReport: %w", err)
 	}
 	defer rows.Close()
+
+	var data []dto.TransactionReportDTO
 	for rows.Next() {
-		var transaction model.TransactionReport
-		if err := rows.Scan(&transaction.Period, &transaction.Income, &transaction.Expense); err != nil {
-			return nil, err
+		var report dto.TransactionReportDTO
+		if err := rows.Scan(&report.Period, &report.Income, &report.Expense); err != nil {
+			return nil, fmt.Errorf("GetTransactionReport scan: %w", err)
 		}
-		data = append(data, transaction)
+		data = append(data, report)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("GetTransactionReport rows: %w", err)
+	}
+
 	return data, nil
 }
 
-func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]model.TransactionHistory, error) {
+func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.TransactionHistoryDTO, error) {
 	limit := 10
 	page := 1
 	if req.Page != "" {
@@ -136,63 +209,70 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 		}
 	}
 	offset := (page - 1) * limit
-	search := req.Search
 
 	query := `
 		SELECT 
-			t.id AS transaction_id,
+			t.id                                AS transaction_id,
 			t.amount,
 			t.type,
+			t.flow_type,
 			t.status,
 			t.created_at,
-			td.description AS transfer_description,
-			u_receiver.fullname AS receiver_name,
-			pm.name AS payment_method_name,
-			COUNT(*) OVER() AS total_count
+			COALESCE(pm.payment_name, '')       AS payment_method_name,
+			w_receiver.user_id                  AS receiver_id,
+			COALESCE(u_receiver.fullname, '')   AS receiver_name,
+			COALESCE(u_sender.fullname, '')     AS sender_name,
+			COUNT(*) OVER()                     AS total_count
 		FROM transactions t
-		LEFT JOIN transfer_details td ON t.id = td.transaction_id
-		LEFT JOIN wallet w_receiver ON td.receiver_wallet_id = w_receiver.id
-		LEFT JOIN users u_receiver ON w_receiver.user_id = u_receiver.id
-		LEFT JOIN topup_details tp ON t.id = tp.transaction_id
-		LEFT JOIN payment_methods pm ON tp.payment_method_id = pm.id
+		LEFT JOIN topup_details tp      ON t.id = tp.transaction_id
+		LEFT JOIN payment_methods pm    ON tp.payment_method_id = pm.id
+		LEFT JOIN transfer_details trd  ON t.id = trd.transaction_id
+		LEFT JOIN wallet w_receiver     ON trd.receiver_wallet_id = w_receiver.id
+		LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
+		LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
+		LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
 		WHERE t.user_id = $1
 		  AND (
 			$2 = '' OR
 			u_receiver.fullname ILIKE '%' || $2 || '%' OR
-			pm.name ILIKE '%' || $2 || '%' OR
-			td.description ILIKE '%' || $2 || '%'
+			u_sender.fullname   ILIKE '%' || $2 || '%' OR
+			pm.payment_name     ILIKE '%' || $2 || '%' OR
+			t.type::TEXT        ILIKE '%' || $2 || '%'
 		  )
 		ORDER BY t.created_at DESC
 		LIMIT $3 OFFSET $4`
 
-	args := []any{id, search, limit, offset}
-
-	var transactions []model.TransactionHistory
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query, id, req.Search, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetTransactionHistory query: %w", err)
 	}
 	defer rows.Close()
 
+	var data []dto.TransactionHistoryDTO
 	for rows.Next() {
-		var transaction model.TransactionHistory
+		var t dto.TransactionHistoryDTO
 		if err := rows.Scan(
-			&transaction.TransactionID,
-			&transaction.Amount,
-			&transaction.Flow_type,
-			&transaction.Type,
-			&transaction.Status,
-			&transaction.CreatedAt,
-			&transaction.Description,       // td.description
-			&transaction.ReceiverName,      // u_receiver.full_name
-			&transaction.PaymentMethodName, // pm.name
-			&transaction.TotalCount,
+			&t.TransactionID,
+			&t.Amount,
+			&t.Type,
+			&t.FlowType,
+			&t.Status,
+			&t.CreatedAt,
+			&t.PaymentMethodName,
+			&t.ReceiverID,
+			&t.ReceiverName,
+			&t.SenderName,
+			&t.TotalCount,
 		); err != nil {
-			return nil, err
+			log.Println("GetTransactionHistory scan error:", err)
+			return nil, fmt.Errorf("GetTransactionHistory scan: %w", err)
 		}
-		transactions = append(transactions, transaction)
+		data = append(data, t)
 	}
 
-	log.Println("apakah repo: ?", transactions)
-	return transactions, nil
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("GetTransactionHistory rows: %w", err)
+	}
+
+	return data, nil
 }

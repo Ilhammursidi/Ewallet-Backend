@@ -21,4 +21,6 @@ func RegisterTransactionRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.
 	transactionRouter := router.Group("/transaction", middleware.Blacklist(authRepo), middleware.VerifyToken)
 
 	transactionRouter.GET("/receivers", transactionController.FindReceivers)
+	transactionRouter.POST("/topup", transactionController.TopUp)
+	transactionRouter.POST("/transfer", transactionController.Transfer)
 }

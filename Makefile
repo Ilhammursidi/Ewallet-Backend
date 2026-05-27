@@ -15,17 +15,17 @@ migrate-down:
 migrate-force:
 	@migrate -database $(DATABASE_URL) -path $(MIGRATION_PATH) force $(VERSION)
 
-# migrate-seed:
-# 	@migrate -database $(DATABASE_URL) -path $(SEEDER_PATH) up
+migrate-seed:
+	@migrate -database $(DATABASE_URL) -path $(SEEDER_PATH) up
 
-# migrate-seed-up:
-# 	@migrate create -ext sql -dir $(SEEDER_PATH) -seq $(NAME)
+migrate-seed-up:
+	@migrate create -ext sql -dir $(SEEDER_PATH) -seq $(NAME)
 
-# migrate-seed-down:
-# 	@migrate -database $(DATABASE_URL) -path $(SEEDER_PATH) down
+migrate-seed-down:
+	@migrate -database $(DATABASE_URL) -path $(SEEDER_PATH) down
 
-# migrate-seed-force:
-# 	@migrate -database $(DATABASE_URL) -path $(SEEDER_PATH) force $(VERSION)
+migrate-seed-force:
+	@migrate -database $(DATABASE_URL) -path $(SEEDER_PATH) force $(VERSION)
 
 migrate-print:
 	@echo $(DATABASE_URL)

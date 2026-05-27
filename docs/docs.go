@@ -49,19 +49,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Create PIN Success",
                         "schema": {
                             "$ref": "#/definitions/dto.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "validation error",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Invalid Token Claims\",\"User not found",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -95,9 +95,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Login Success",
                         "schema": {
                             "$ref": "#/definitions/dto.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid Email or Password",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     },
                     "500": {
@@ -174,6 +180,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.Response"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -245,14 +257,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/check-pin": {
-            "get": {
+        "/transaction/topup": {
+            "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Verify whether the user has already set a transaction PIN or not",
+                "description": "Add balance to user's wallet using a payment method",
                 "consumes": [
                     "application/json"
                 ],
@@ -260,18 +272,98 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "transaction"
                 ],
-                "summary": "Check PIN Status",
-                "responses": {
-                    "200": {
-                        "description": "Success check PIN",
+                "summary": "Top up wallet balance",
+                "parameters": [
+                    {
+                        "description": "Top up request payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.Response"
+                            "$ref": "#/definitions/dto.TopUpHTTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Top up successful",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TopUpResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or amount",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/transaction/transfer": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Transfer balance from sender wallet to receiver wallet",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transaction"
+                ],
+                "summary": "Transfer balance to another wallet",
+                "parameters": [
+                    {
+                        "description": "Transfer request payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TransferHTTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Transfer successful",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TransferResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or insufficient balance",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -769,6 +861,93 @@ const docTemplate = `{
                 "pin": {
                     "type": "string",
                     "example": "123456"
+                }
+            }
+        },
+        "dto.TopUpHTTPRequest": {
+            "type": "object",
+            "required": [
+                "order_amount",
+                "payment_method_id"
+            ],
+            "properties": {
+                "delivery_fee": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "order_amount": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "payment_method_id": {
+                    "type": "integer"
+                },
+                "tax_amount": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "dto.TopUpResponse": {
+            "type": "object",
+            "properties": {
+                "credit_amount": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/dto.TransactionStatus"
+                },
+                "topup_detail_id": {
+                    "type": "integer"
+                },
+                "total_amount": {
+                    "type": "integer"
+                },
+                "transaction_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TransactionStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SUCCESS",
+                "FAILED"
+            ],
+            "x-enum-varnames": [
+                "StatusPending",
+                "StatusSuccess",
+                "StatusFailed"
+            ]
+        },
+        "dto.TransferHTTPRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "receiver_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "receiver_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TransferResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/dto.TransactionStatus"
+                },
+                "transaction_id": {
+                    "type": "integer"
                 }
             }
         },

@@ -24,11 +24,83 @@ type ReceiverListResponse struct {
 	Meta  PaginationMetaResponse `json:"meta"`
 }
 
-// @name TopupRequest
-type TopupRequest struct {
-	SubTotal        uint `json:"sub_total" binding:"required"`
-	PaymentMethodId int  `json:"payment_method_id" binding:"required"`
-	Order           int  `json:""`
-	Delivery        int
-	Tax             int
+type TransactionStatus string
+type TransactionType string
+type CashflowType string
+
+const (
+	StatusPending TransactionStatus = "PENDING"
+	StatusSuccess TransactionStatus = "SUCCESS"
+	StatusFailed  TransactionStatus = "FAILED"
+
+	TypeTopUp       TransactionType = "TOPUP"
+	TypeTransferIn  TransactionType = "TRANSFER_IN"
+	TypeTransferOut TransactionType = "TRANSFER_OUT"
+
+	FlowIncome  CashflowType = "income"
+	FlowExpense CashflowType = "expense"
+)
+
+type CreateTransactionParams struct {
+	UserID           int
+	ReceiverWalletID int
+	PaymentMethodID  int
+	Amount           int
+}
+
+type CreateTopUpDetailParams struct {
+	TransactionID   int
+	WalletID        int
+	PaymentMethodID int
+	OrderAmount     int
+	TaxAmount       int
+	DeliveryFee     int
+	TotalAmount     int
+}
+
+type TopUpHTTPRequest struct {
+	PaymentMethodID int `json:"payment_method_id"   validate:"required"`
+	OrderAmount     int `json:"order_amount"        validate:"required,min=1"`
+	TaxAmount       int `json:"tax_amount"          validate:"min=0"`
+	DeliveryFee     int `json:"delivery_fee"        validate:"min=0"`
+}
+
+type TopUpServiceRequest struct {
+	UserID          int
+	PaymentMethodID int
+	OrderAmount     int
+	TaxAmount       int
+	DeliveryFee     int
+}
+
+type TopUpResponse struct {
+	TransactionID int               `json:"transaction_id"`
+	TopUpDetailID int               `json:"topup_detail_id"`
+	TotalAmount   int               `json:"total_amount"`
+	CreditAmount  int               `json:"credit_amount"`
+	Status        TransactionStatus `json:"status"`
+}
+
+type CreateTransferParams struct {
+	UserID           int
+	SenderWalletID   int
+	ReceiverWalletID int
+	Amount           int
+}
+
+type TransferResponse struct {
+	TransactionID int               `json:"transaction_id"`
+	Amount        int               `json:"amount"`
+	Status        TransactionStatus `json:"status"`
+}
+
+type TransferHTTPRequest struct {
+	ReceiverID int `json:"receiver_id" validate:"required"`
+	Amount     int `json:"amount"      validate:"required,min=1"`
+}
+
+type TransferServiceRequest struct {
+	UserID     int
+	ReceiverID int
+	Amount     int
 }

@@ -59,12 +59,25 @@ func (u *UserService) EditProfile(ctx context.Context, id int, req dto.EditProfi
 	if err != nil {
 		return dto.EditProfileResponse{}, err
 	}
+	var fullname, phone, photo string
+
+	if req.Fullname != nil {
+		fullname = *user.Fullname
+	}
+
+	if req.Phone_number != nil {
+		phone = *user.Phone_number
+	}
+
+	if req.Photo_path != nil {
+		photo = *user.Photo_path
+	}
 
 	return dto.EditProfileResponse{
-		Fullname:     user.Fullname,
+		Fullname:     fullname,
 		Email:        user.Email,
-		Phone_number: user.Phone_number,
-		Photo_path:   user.Photo_path,
+		Phone_number: phone,
+		Photo_path:   photo,
 	}, nil
 }
 
@@ -84,72 +97,55 @@ func (u *UserService) EditPassword(ctx context.Context, id int, req dto.EditPass
 	return u.userRepo.EditPassword(ctx, id, &hashedPassword)
 }
 
-func (u *UserService) CheckUserPin(ctx context.Context, id int) (dto.CheckPinResponse, error) {
-	user, err := u.userRepo.CheckPin(ctx, id)
-	if err != nil {
-		return dto.CheckPinResponse{}, err
-	}
-	return dto.CheckPinResponse{
-		HasPin: user != nil,
-	}, nil
-}
-
 func (u *UserService) GetTransactionReport(ctx context.Context, id int, req dto.TransactionReportRequest) ([]dto.TransactionReportDTO, error) {
+	validPeriods := map[string]bool{
+		"week":  true,
+		"month": true,
+		"year":  true,
+	}
+
+	if !validPeriods[req.Period] {
+		return nil, fmt.Errorf("invalid period: %s (week/month/year)", req.Period)
+	}
+
 	data, err := u.userRepo.GetTransactionReport(ctx, id, req.Period)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetTransactionReport: %w", err)
 	}
-	var transactions []dto.TransactionReportDTO
-	for _, transaction := range data {
-		transactions = append(transactions, dto.TransactionReportDTO{
-			Period:  transaction.Period,
-			Income:  transaction.Income,
-			Expense: transaction.Expense,
-		})
-	}
-	return transactions, nil
+
+	return data, nil
 }
 
-func (u *UserService) TransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.GetTransactionHistory, dto.PaginationMetaData, error) {
+func (u *UserService) TransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.TransactionHistoryDTO, dto.PaginationMetaData, error) {
+	page := 1
+	if req.Page != "" {
+		if p, err := strconv.Atoi(req.Page); err == nil && p > 0 {
+			page = p
+		}
+	}
+	log.Println("TransactionHistory - calling repo, id:", id, "req:", req)
 	data, err := u.userRepo.GetTransactionHistory(ctx, id, req)
 	if err != nil {
 		return nil, dto.PaginationMetaData{}, err
 	}
-	log.Println("apakah work:", data)
+	log.Println("TransactionHistory - repo success, len:", len(data))
 	if len(data) == 0 {
-		return []dto.GetTransactionHistory{}, dto.PaginationMetaData{}, nil
+		return []dto.TransactionHistoryDTO{}, dto.PaginationMetaData{}, nil
 	}
 
 	totalData := data[0].TotalCount
 	limit := 10
 	totalPage := int(math.Ceil(float64(totalData) / float64(limit)))
 
-	page, err := strconv.Atoi(req.Page)
-	if err != nil {
-		return nil, dto.PaginationMetaData{}, err
-	}
-
-	var users []dto.GetTransactionHistory
 	prevLink := fmt.Sprintf("/transactions/?search=%s&page=%d", req.Search, page-1)
 	nextLink := fmt.Sprintf("/transactions/?search=%s&page=%d", req.Search, page+1)
-	for _, user := range data {
-		users = append(users, dto.GetTransactionHistory{
-			TransactionID:     user.TransactionID,
-			Amount:            user.Amount,
-			Flow_type:         user.Flow_type,
-			Type:              user.Type,
-			Status:            user.Status,
-			CreatedAt:         user.CreatedAt,
-			Description:       user.Description,
-			ReceiverName:      user.ReceiverName,
-			PaymentMethodName: user.PaymentMethodName,
-		})
-	}
-	metaDataPagination := dto.PaginationMetaData{
+
+	meta := dto.PaginationMetaData{
 		TotalPages: totalPage,
 		TotalData:  totalData,
 		NextLink:   nextLink,
 		PrevLink:   prevLink,
 	}
-	return users, metaDataPagination, nil
+
+	return data, meta, nil
 }
