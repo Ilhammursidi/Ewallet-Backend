@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/ewallet-backend/db/seeder"
 	"github.com/ewallet-backend/internal/config"
 	"github.com/ewallet-backend/internal/router"
 	"github.com/gin-gonic/gin"
@@ -42,10 +41,6 @@ func main() {
 	}
 	defer rc.Close()
 	log.Println("Redis Connected")
-	// main.go
-	if err := seeder.Run(db); err != nil {
-		log.Fatal("seeder failed: ", err)
-	}
 
 	router.InitRouter(app, db, rc)
 	app.Run(fmt.Sprintf("%s:%s", os.Getenv("APP_HOST"), os.Getenv("APP_PORT")))
