@@ -1,1 +1,1 @@
-DROP TABLE wallet;
+DROP TABLE wallet CASCADE;

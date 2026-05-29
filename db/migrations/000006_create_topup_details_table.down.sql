@@ -1,1 +1,1 @@
-DROP TABLE topup_details;
+DROP TABLE topup_details CASCADE;

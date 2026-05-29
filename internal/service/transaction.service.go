@@ -79,7 +79,7 @@ func (ts *TransactionService) FindReceivers(ctx context.Context, userId int, sea
 
 func (ts *TransactionService) TopUp(ctx context.Context, req dto.TopUpServiceRequest) (*dto.TopUpResponse, error) {
 	totalAmount := req.OrderAmount + req.TaxAmount + req.DeliveryFee
-	creditAmount := req.OrderAmount - req.TaxAmount - req.DeliveryFee
+	creditAmount := req.OrderAmount
 
 	if creditAmount <= 0 {
 		return nil, fmt.Errorf("order_amount too small to cover tax and delivery fee")
@@ -97,7 +97,6 @@ func (ts *TransactionService) TopUp(ctx context.Context, req dto.TopUpServiceReq
 	}
 
 	transactionID, err := ts.transactionRepository.CreateTransaction(ctx, tx, dto.CreateTransactionParams{
-		UserID:           req.UserID,
 		ReceiverWalletID: walletID,
 		PaymentMethodID:  req.PaymentMethodID,
 		Amount:           totalAmount,
@@ -169,24 +168,14 @@ func (ts *TransactionService) Transfer(ctx context.Context, req dto.TransferServ
 		return nil, fmt.Errorf("insufficient balance: have %d, need %d", balance, req.Amount)
 	}
 
-	transferOutID, err := ts.transactionRepository.CreateTransferOut(ctx, tx, dto.CreateTransferParams{
+	transferOutID, err := ts.transactionRepository.CreateTransfer(ctx, tx, dto.CreateTransferParams{
 		UserID:           req.UserID,
 		SenderWalletID:   senderWalletID,
 		ReceiverWalletID: receiverWalletID,
 		Amount:           req.Amount,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Transfer - create transfer out: %w", err)
-	}
-
-	_, err = ts.transactionRepository.CreateTransferIn(ctx, tx, dto.CreateTransferParams{
-		UserID:           req.ReceiverID,
-		SenderWalletID:   senderWalletID,
-		ReceiverWalletID: receiverWalletID,
-		Amount:           req.Amount,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("Transfer - create transfer in: %w", err)
+		return nil, fmt.Errorf("Transfer - create transfer: %w", err)
 	}
 
 	if err := ts.transactionRepository.CreateTransferDetail(ctx, tx, transferOutID, senderWalletID, receiverWalletID); err != nil {

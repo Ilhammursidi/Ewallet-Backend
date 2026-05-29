@@ -205,3 +205,82 @@ func (a *AuthController) Logout(ctx *gin.Context) {
 		Data:    nil,
 	})
 }
+
+// Request Forgot Password
+// @Summary      Get link for forgot password
+// @Description  Check email and save temporary token to Redis
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ForgotPasswordRequest true "Input Email"
+// @Success      200 {object} map[string]string "Message: Instruksi terkirim"
+// @Failure      400 {object} map[string]string "Error message"
+// @Router       /auth/forgot-password [post]
+func (ctrl *AuthController) RequestForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := ctrl.authService.RequestReset(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "Link reset_token has send",
+	})
+}
+
+// Verify Reset Token
+// @Summary      Verify Token Forgot Password
+// @Description  Checking Redis whether the email link token is still active
+// @Tags         auth
+// @Produce      json
+// @Param        token query string true "Token from email"
+// @Success      200 {object} map[string]string "Message: Token valid"
+// @Failure      400 {object} map[string]string "Error message"
+// @Router       /auth/verify-reset-token [post]
+func (ctrl *AuthController) VerifyResetToken(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token dibutuhkan"})
+		return
+	}
+
+	err := ctrl.authService.VerifyToken(c.Request.Context(), token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Token valid, silakan ganti password"})
+}
+
+// Reset Password
+// @Summary      Save New Password
+// @Description  Change Password in database and delete token from redis
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ResetPasswordRequest true "Input New Password"
+// @Success      200 {object} map[string]string "Message: Change Password successfull"
+// @Failure      400 {object} map[string]string "Error message"
+// @Router       /auth/reset-password [post]
+func (ctrl *AuthController) ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := ctrl.authService.ResetPassword(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Change Password Success"})
+}

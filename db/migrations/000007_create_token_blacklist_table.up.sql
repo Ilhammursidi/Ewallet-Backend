@@ -1,5 +1,0 @@
-CREATE TABLE token_blacklist (
-    id SERIAL PRIMARY KEY,
-    token TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);

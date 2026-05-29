@@ -38,21 +38,20 @@ func (u *UserRepository) GetMoneyAccountInfo(ctx context.Context, id int) (model
             w.balance AS balance,
             SUM(
                 CASE
-                    WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS'
+                    WHEN t.type = 'TRANSFER' AND t.receiver_wallet_id = $1 AND t.status = 'SUCCESS'
                     THEN t.amount
                     ELSE 0
                 END
             ) AS income,
             SUM(
                 CASE
-                    WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS'
+                    WHEN t.type = 'TRANSFER' AND t.sender_wallet_id = $1 AND t.status = 'SUCCESS'
                     THEN t.amount
                     ELSE 0
                 END
             ) AS expense
-        FROM transactions t
-        JOIN wallet w ON w.user_id = t.user_id
-        WHERE t.user_id = $1
+        FROM transactions t, wallet w 
+        WHERE w.user_id = $1
         GROUP BY w.balance`
 
 	var money model.CashFlow
@@ -118,19 +117,19 @@ func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timeP
 		sql = `
 			WITH date_series AS (
 				SELECT generate_series(
-					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE - INTERVAL '6 days',
-					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
+					CURRENT_DATE - INTERVAL '6 days',
+					CURRENT_DATE,
 					INTERVAL '1 day'
 				)::DATE AS period
 			)
 			SELECT 
 				ds.period,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
 			LEFT JOIN transactions t
 				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
-				AND t.user_id = $1
+				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
 			GROUP BY ds.period
 			ORDER BY ds.period ASC`
 
@@ -138,19 +137,19 @@ func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timeP
 		sql = `
 			WITH date_series AS (
 				SELECT generate_series(
-					DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
-					(DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '1 month - 1 day')::DATE,
+					DATE_TRUNC('month', CURRENT_DATE)::DATE,
+					(DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::DATE,
 					INTERVAL '1 day'
 				)::DATE AS period
 			)
 			SELECT 
 				ds.period,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
 			LEFT JOIN transactions t
 				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
-				AND t.user_id = $1
+				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
 			GROUP BY ds.period
 			ORDER BY ds.period ASC`
 
@@ -158,19 +157,19 @@ func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timeP
 		sql = `
 			WITH date_series AS (
 				SELECT generate_series(
-					DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
-					(DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '11 months')::DATE,
+					DATE_TRUNC('year', CURRENT_DATE)::DATE,
+					(DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '11 months')::DATE,
 					INTERVAL '1 month'
 				)::DATE AS period
 			)
 			SELECT 
 				ds.period,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_IN' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER_OUT' AND t.status = 'SUCCESS' THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
 			LEFT JOIN transactions t
 				ON DATE_TRUNC('month', t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
-				AND t.user_id = $1
+				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
 			GROUP BY ds.period
 			ORDER BY ds.period ASC`
 
@@ -215,7 +214,6 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			t.id                                AS transaction_id,
 			t.amount,
 			t.type,
-			t.flow_type,
 			t.status,
 			t.created_at,
 			COALESCE(pm.payment_name, '')       AS payment_method_name,
@@ -231,13 +229,13 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 		LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
 		LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
 		LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
-		WHERE t.user_id = $1
+		WHERE w_receiver.user_id = $1
 		  AND (
 			$2 = '' OR
-			u_receiver.fullname ILIKE '%' || $2 || '%' OR
-			u_sender.fullname   ILIKE '%' || $2 || '%' OR
-			pm.payment_name     ILIKE '%' || $2 || '%' OR
-			t.type::TEXT        ILIKE '%' || $2 || '%'
+			LOWER(u_receiver.fullname) LIKE '%' || $2 || '%' OR
+			LOWER(u_sender.fullname)   LIKE '%' || $2 || '%' OR
+			LOWER(pm.payment_name)     LIKE '%' || $2 || '%' OR
+			LOWER(t.type::TEXT)        LIKE '%' || $2 || '%'
 		  )
 		ORDER BY t.created_at DESC
 		LIMIT $3 OFFSET $4`

@@ -66,11 +66,11 @@ type TopUpHTTPRequest struct {
 }
 
 type TopUpServiceRequest struct {
-	UserID          int
-	PaymentMethodID int
-	OrderAmount     int
-	TaxAmount       int
-	DeliveryFee     int
+	UserID          int `json:"user_id"`
+	PaymentMethodID int `json:"payment_method_id"`
+	OrderAmount     int `json:"order_amount"`
+	TaxAmount       int `json:"tax_amount"`
+	DeliveryFee     int `json:"delivery_fee"`
 }
 
 type TopUpResponse struct {

@@ -11,12 +11,11 @@ import (
 )
 
 func RegisterUserRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
-	authRepo := repository.NewAuthRepository(db)
 
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo, rdb)
 	userController := controller.NewUserController(userService)
-	userRouter := router.Group("/users", middleware.Blacklist(authRepo), middleware.VerifyToken)
+	userRouter := router.Group("/users", middleware.VerifyToken)
 
 	userRouter.GET("/dashboard", userController.GetDashboardInfo)
 	userRouter.GET("/profile", userController.GetProfile)

@@ -41,6 +41,14 @@ definitions:
         example: error message
         type: string
     type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        example: user@mail.com
+        type: string
+    required:
+    - email
+    type: object
   dto.GetTransactionHistory:
     properties:
       activity_type:
@@ -76,6 +84,18 @@ definitions:
     required:
     - email
     - password
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      password_baru:
+        example: rahasia123
+        minLength: 6
+        type: string
+      token:
+        type: string
+    required:
+    - password_baru
+    - token
     type: object
   dto.Response:
     properties:
@@ -220,6 +240,36 @@ paths:
       summary: Create a PIN
       tags:
       - auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Check email and save temporary token to Redis
+      parameters:
+      - description: Input Email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Message: Instruksi terkirim'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Error message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get link for forgot password
+      tags:
+      - auth
   /auth/login:
     post:
       consumes:
@@ -299,6 +349,63 @@ paths:
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
       summary: Register a user
+      tags:
+      - auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Change Password in database and delete token from redis
+      parameters:
+      - description: Input New Password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Message: Change Password successfull'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Error message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Save New Password
+      tags:
+      - auth
+  /auth/verify-reset-token:
+    post:
+      description: Checking Redis whether the email link token is still active
+      parameters:
+      - description: Token from email
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Message: Token valid'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Error message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verify Token Forgot Password
       tags:
       - auth
   /transaction/receivers:

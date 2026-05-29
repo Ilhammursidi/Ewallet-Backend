@@ -94,3 +94,9 @@ func (a *AuthRepository) IsBlacklist(ctx context.Context, token string) (bool, e
 	}
 	return true, nil
 }
+
+func (a *AuthRepository) UpdatePassword(ctx context.Context, userID int, hashedPassword string) error {
+	query := "UPDATE users SET password = $1 WHERE id = $2"
+	_, err := a.db.Exec(ctx, query, hashedPassword, userID)
+	return err
+}

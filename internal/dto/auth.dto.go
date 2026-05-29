@@ -33,3 +33,13 @@ type LoginResponse struct {
 	Token  string `json:"token" example:"token..."`
 	HasPin bool   `json:"has_pin" example:"false"`
 }
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email" example:"user@mail.com"`
+}
+
+// Input saat user memasukkan password baru
+type ResetPasswordRequest struct {
+	Token        string `json:"token" binding:"required"`
+	PasswordBaru string `json:"password_baru" binding:"required,min=6" example:"rahasia123"`
+}

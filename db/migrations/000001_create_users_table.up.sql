@@ -1,3 +1,7 @@
+CREATE TYPE transaction_status AS ENUM ('PENDING','SUCCESS','FAILED');
+CREATE TYPE transaction_type AS ENUM ('TOPUP', 'TRANSFER');
+CREATE TYPE cashflow_type AS ENUM ('income','expense');
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,

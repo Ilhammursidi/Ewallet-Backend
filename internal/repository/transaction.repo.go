@@ -41,9 +41,9 @@ func (tr *TransactionRepository) FindReceivers(ctx context.Context, dbtx DBTX, u
 		FROM users
 		WHERE id != $1
 		AND (
-			COALESCE(fullname, '') ILIKE $2
-			OR email ILIKE $2 
-			OR COALESCE(phone_number, '') ILIKE $2 
+			LOWER(COALESCE(fullname, '')) LIKE $2
+			OR LOWER(email) LIKE $2 
+			OR LOWER(COALESCE(phone_number, '')) LIKE $2 
 			)
 		ORDER BY COALESCE(fullname, email) ASC
 		LIMIT $3
@@ -78,14 +78,13 @@ func (tr *TransactionRepository) FindReceivers(ctx context.Context, dbtx DBTX, u
 func (tr *TransactionRepository) CreateTransaction(ctx context.Context, dbtx DBTX, p dto.CreateTransactionParams) (int, error) {
 	sql := `
         INSERT INTO transactions
-            (user_id, receiver_wallet_id, payment_method_id, type, amount, status)
+            (receiver_wallet_id, payment_method_id, type, amount, status)
         VALUES
-            ($1, $2, $3, 'TOPUP', $4, 'PENDING')
+            ($1, $2, 'TOPUP', $3, 'PENDING')
         RETURNING id`
 
 	var transactionID int
 	err := dbtx.QueryRow(ctx, sql,
-		p.UserID,
 		p.ReceiverWalletID,
 		p.PaymentMethodID,
 		p.Amount,
@@ -141,44 +140,22 @@ func (tr *TransactionRepository) CreditWallet(ctx context.Context, dbtx DBTX, wa
 	return nil
 }
 
-func (tr *TransactionRepository) CreateTransferOut(ctx context.Context, dbtx DBTX, p dto.CreateTransferParams) (int, error) {
+func (tr *TransactionRepository) CreateTransfer(ctx context.Context, dbtx DBTX, p dto.CreateTransferParams) (int, error) {
 	sql := `
         INSERT INTO transactions
-            (user_id, sender_wallet_id, receiver_wallet_id, type, flow_type, amount, status)
+            (sender_wallet_id, receiver_wallet_id, type, amount, status)
         VALUES
-            ($1, $2, $3, 'TRANSFER_OUT', 'expense', $4, 'SUCCESS')
+            ($1, $2, 'TRANSFER', $3, 'SUCCESS')
         RETURNING id`
 
 	var transactionID int
 	err := dbtx.QueryRow(ctx, sql,
-		p.UserID,
 		p.SenderWalletID,
 		p.ReceiverWalletID,
 		p.Amount,
 	).Scan(&transactionID)
 	if err != nil {
 		return 0, fmt.Errorf("CreateTransferOut: %w", err)
-	}
-	return transactionID, nil
-}
-
-func (tr *TransactionRepository) CreateTransferIn(ctx context.Context, dbtx DBTX, p dto.CreateTransferParams) (int, error) {
-	sql := `
-        INSERT INTO transactions
-            (user_id, sender_wallet_id, receiver_wallet_id, type, flow_type, amount, status)
-        VALUES
-            ($1, $2, $3, 'TRANSFER_IN', 'income', $4, 'SUCCESS')
-        RETURNING id`
-
-	var transactionID int
-	err := dbtx.QueryRow(ctx, sql,
-		p.UserID,
-		p.SenderWalletID,
-		p.ReceiverWalletID,
-		p.Amount,
-	).Scan(&transactionID)
-	if err != nil {
-		return 0, fmt.Errorf("CreateTransferIn: %w", err)
 	}
 	return transactionID, nil
 }

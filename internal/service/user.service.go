@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
@@ -27,11 +29,26 @@ func NewUserService(userRepo *repository.UserRepository, rdb *redis.Client) *Use
 }
 
 func (u *UserService) GetUserProfile(ctx context.Context, id int) (dto.User, error) {
+	rkey := "ilhammursidi:profile"
+	cache, err := u.rdb.Get(ctx, rkey).Result()
+	if err == nil {
+		var cachedProfile dto.User
+		if err := json.Unmarshal([]byte(cache), &cachedProfile); err == nil {
+			log.Println("profile: cache hit")
+			return cachedProfile, nil
+		}
+	} else if err != redis.Nil {
+		return dto.User{}, nil
+	}
+
+	log.Println("profile: cache miss")
+
 	res, err := u.userRepo.GetProfileId(ctx, id)
 	if err != nil {
 		return dto.User{}, err
 	}
-	return dto.User{
+
+	userResponse := dto.User{
 		Id:           res.Id,
 		Email:        res.Email,
 		Fullname:     *res.Fullname,
@@ -39,7 +56,19 @@ func (u *UserService) GetUserProfile(ctx context.Context, id int) (dto.User, err
 		Phone_number: *res.Phone_number,
 		Created_at:   *res.Created_at,
 		Updated_at:   res.Updated_at,
-	}, nil
+	}
+
+	jsonData, err := json.Marshal(userResponse)
+	if err != nil {
+		log.Println("failed to marshal user for cache:", err)
+	} else {
+		err = u.rdb.Set(ctx, rkey, jsonData, 10*time.Hour).Err()
+		if err != nil {
+			log.Println("failed to save redis:", err)
+		}
+	}
+
+	return userResponse, nil
 }
 
 func (u *UserService) GetMoneyInfo(ctx context.Context, id int) (dto.CashFlow, error) {
