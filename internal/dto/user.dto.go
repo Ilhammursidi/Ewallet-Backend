@@ -90,6 +90,7 @@ type GetTransactionHistory struct {
 	Description       string    `json:"transfer_description"`
 	ReceiverName      string    `json:"receiver_name"`
 	PaymentMethodName string    `json:"payment_method_name"`
+	Phone             string    `json:"phone_number"`
 	TotalCount        int       `json:"total_count"`
 }
 
@@ -104,5 +105,6 @@ type TransactionHistoryDTO struct {
 	ReceiverID        *int      `json:"receiver_id"`
 	ReceiverName      string    `json:"receiver_name"`
 	SenderName        string    `json:"sender_name"`
+	Phone             string    `json:"phone_number"`
 	TotalCount        int       `json:"total_count"`
 }
