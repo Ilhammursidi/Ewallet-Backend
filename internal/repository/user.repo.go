@@ -220,7 +220,7 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			w_receiver.user_id                  AS receiver_id,
 			COALESCE(u_receiver.fullname, '')   AS receiver_name,
 			COALESCE(u_sender.fullname, '')     AS sender_name,
-			COUNT(*) OVER()                     AS total_count
+			COALESCE(u_receiver.phone_number, '') AS phone_number
 		FROM transactions t
 		LEFT JOIN topup_details tp      ON t.id = tp.transaction_id
 		LEFT JOIN payment_methods pm    ON tp.payment_method_id = pm.id
@@ -229,13 +229,13 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 		LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
 		LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
 		LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
-		WHERE w_receiver.user_id = $1
+		WHERE (w_receiver.user_id = $1 OR w_sender.user_id = $1 OR tp.wallet_id = $1)
 		  AND (
 			$2 = '' OR
-			LOWER(u_receiver.fullname) LIKE '%' || $2 || '%' OR
-			LOWER(u_sender.fullname)   LIKE '%' || $2 || '%' OR
-			LOWER(pm.payment_name)     LIKE '%' || $2 || '%' OR
-			LOWER(t.type::TEXT)        LIKE '%' || $2 || '%'
+			LOWER(u_receiver.fullname) LIKE '%' || LOWER($2) || '%' OR
+			LOWER(u_sender.fullname)   LIKE '%' || LOWER($2) || '%' OR
+			LOWER(u_receiver.phone_number) LIKE '%' || LOWER($2) || '%' OR
+			LOWER(u_sender.phone_number) LIKE '%' || LOWER($2) || '%'
 		  )
 		ORDER BY t.created_at DESC
 		LIMIT $3 OFFSET $4`
@@ -253,14 +253,13 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			&t.TransactionID,
 			&t.Amount,
 			&t.Type,
-			&t.FlowType,
 			&t.Status,
 			&t.CreatedAt,
 			&t.PaymentMethodName,
 			&t.ReceiverID,
 			&t.ReceiverName,
 			&t.SenderName,
-			&t.TotalCount,
+			&t.Phone,
 		); err != nil {
 			log.Println("GetTransactionHistory scan error:", err)
 			return nil, fmt.Errorf("GetTransactionHistory scan: %w", err)
@@ -273,4 +272,14 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 	}
 
 	return data, nil
+}
+
+func (u *UserRepository) GetAllTransactionId(ctx context.Context, id int) (int, error) {
+	sql := `SELECT COUNT(id) FROM transactions WHERE sender_wallet_id = $1 OR receiver_wallet_id = $1;`
+	var count int
+	err := u.db.QueryRow(ctx, sql, id).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
