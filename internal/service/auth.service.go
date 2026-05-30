@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -123,14 +124,15 @@ func (a *AuthService) CreatePin(ctx context.Context, userId int, body dto.SetPin
 }
 
 func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
-	// blacklistKey := "ilhammursidi:blacklist:" + token
+	blacklistKey := "ilhammursidi:blacklist:" + token
 
-	// err := a.rdb.Set(ctx, blacklistKey, "true", ttl).Err()
-	// if err != nil {
-	// 	return err
-	// }
-	// return nil
-	return a.authRepo.AddToBlackList(ctx, token)
+	fmt.Println("ini di auth serv redis", blacklistKey)
+	err := a.rdb.Set(ctx, blacklistKey, "true", 10*time.Hour).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+	// return a.authRepo.AddToBlackList(ctx, token)
 
 }
 
