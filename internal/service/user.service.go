@@ -29,7 +29,7 @@ func NewUserService(userRepo *repository.UserRepository, rdb *redis.Client) *Use
 }
 
 func (u *UserService) GetUserProfile(ctx context.Context, id int) (dto.User, error) {
-	rkey := "ilhammursidi:profile"
+	rkey := "ilhammursidi:profile:" + string(rune(id))
 	cache, err := u.rdb.Get(ctx, rkey).Result()
 	if err == nil {
 		var cachedProfile dto.User
@@ -145,7 +145,7 @@ func (u *UserService) GetTransactionReport(ctx context.Context, id int, req dto.
 	return data, nil
 }
 
-func (u *UserService) TransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.TransactionHistoryDTO, dto.PaginationMetaData, error) {
+func (u *UserService) TransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.TransactionHistoryDTO, dto.PaginationMetaResponse, error) {
 	page := 1
 	if req.Page != "" {
 		if p, err := strconv.Atoi(req.Page); err == nil && p > 0 {
@@ -155,25 +155,40 @@ func (u *UserService) TransactionHistory(ctx context.Context, id int, req dto.Tr
 	log.Println("TransactionHistory - calling repo, id:", id, "req:", req)
 	data, err := u.userRepo.GetTransactionHistory(ctx, id, req)
 	if err != nil {
-		return nil, dto.PaginationMetaData{}, err
+		return nil, dto.PaginationMetaResponse{}, err
 	}
 	log.Println("TransactionHistory - repo success, len:", len(data))
 	if len(data) == 0 {
-		return []dto.TransactionHistoryDTO{}, dto.PaginationMetaData{}, nil
+		return []dto.TransactionHistoryDTO{}, dto.PaginationMetaResponse{}, nil
 	}
-
-	totalData := data[0].TotalCount
+	totalTransactions, err := u.userRepo.GetAllTransactionId(ctx, id)
+	totalData := totalTransactions
 	limit := 10
 	totalPage := int(math.Ceil(float64(totalData) / float64(limit)))
 
-	prevLink := fmt.Sprintf("/transactions/?search=%s&page=%d", req.Search, page-1)
-	nextLink := fmt.Sprintf("/transactions/?search=%s&page=%d", req.Search, page+1)
+	var NextPage string
+	Domain := "http://localhost:8081"
+	if page < totalPage {
+		Next := page + 1
+		NextPage = fmt.Sprintf("%s/transactions/?search=%s&page=%d", Domain, req.Search, Next)
+	} else {
+		NextPage = ""
+	}
 
-	meta := dto.PaginationMetaData{
-		TotalPages: totalPage,
-		TotalData:  totalData,
-		NextLink:   nextLink,
-		PrevLink:   prevLink,
+	var PrevPage string
+	if page > totalPage {
+		Prev := page - 1
+		PrevPage = fmt.Sprintf("%s/transactions/?search=%s&page=%d", Domain, req.Search, Prev)
+	} else {
+		PrevPage = ""
+	}
+
+	meta := dto.PaginationMetaResponse{
+		Page:       page,
+		Total_Data: totalData,
+		Total_Page: totalPage,
+		Next_Page:  NextPage,
+		Prev_Page:  PrevPage,
 	}
 
 	return data, meta, nil
