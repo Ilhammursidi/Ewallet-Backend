@@ -104,7 +104,7 @@ func (u *UserController) GetDashboardInfo(ctx *gin.Context) {
 //	@Security		ApiKeyAuth
 //	@Param			fullname	formData	string	false	"Full name"
 //	@Param			phone		formData	string	false	"Phone number"
-//	@Param			photo		formData	file	false	"Profile photo (jpg, jpeg, png, webp, max 2MB)"
+//	@Param			photo		formData	file	false	"Profile photo (jpg, jpeg, png, max 2MB)"
 //	@Success		200		{object}	dto.UserProfileResponse		"Profile updated successfully"
 //	@Failure		400		{object}	dto.ErrorResponse	"Bad Request"
 //	@Failure		500		{object}	dto.ErrorResponse	"Internal Server Error"
@@ -126,7 +126,7 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 
 	var photoPath *string
 
-	if body.Photo_path != nil {
+	if body.Photo_path.Filename != "" {
 
 		const maxUploadSize = 2 * 1024 * 1024
 
@@ -169,7 +169,7 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 			filename,
 		)
 
-		if err := ctx.SaveUploadedFile(body.Photo_path, dst); err != nil {
+		if err := ctx.SaveUploadedFile(&body.Photo_path, dst); err != nil {
 			ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 				Message: "Failed to save image",
 				Success: false,
@@ -275,7 +275,7 @@ func (u *UserController) EditPassword(ctx *gin.Context) {
 	if err := u.userService.EditPassword(ctx.Request.Context(), claims.Id, body); err != nil {
 		log.Println(err.Error())
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "internal error",
+			Message: err.Error(),
 			Success: false,
 			Error:   "internal server error",
 		})
