@@ -10,6 +10,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/ewallet-backend/internal/config"
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
 	"github.com/ewallet-backend/pkg"
@@ -137,31 +138,58 @@ func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
 }
 
 func (a *AuthService) RequestReset(ctx context.Context, req dto.ForgotPasswordRequest) error {
+	// 1. Validasi apakah user terdaftar di database
 	user, err := a.authRepo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return err // User tidak terdaftar
+		return errors.New("email tidak terdaftar atau bermasalah")
 	}
 
-	// Buat token random yang aman
+	// 2. Buat token random yang aman sepanjang 32 karakter hex
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return errors.New("gagal membuat token keamanan")
+	}
 	token := hex.EncodeToString(b)
 
+	// 3. AMAN: Simpan ke Redis TERLEBIH DAHULU sebelum kirim email
+	// Value yang disimpan adalah User ID agar mempermudah proses update password nanti
 	err = a.cacheRepo.SaveResetToken(ctx, token, user.Id, 15*time.Minute)
 	if err != nil {
-		return err
+		return errors.New("gagal membuat sesi pemulihan di server")
+	}
+
+	// 4. Muat berkas config & inisialisasi Gomail Mailer
+	cfg := config.LoadConfig()
+	mailer := pkg.NewGomailMailer(
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+		cfg.SMTPFromEmail,
+	)
+
+	// Sesuaikan dengan path VerifyTokenPage pada React Router Anda: /auth/verify?token=XYZ
+	resetlink := fmt.Sprintf("%s/auth/verify-token?token=%s", cfg.FrontendURL, token)
+
+	// 5. Jalankan pengiriman email pemulihan
+	err = mailer.SendResetLink(req.Email, resetlink)
+	if err != nil {
+		// Perbaikan: Hapus token dari redis jika email gagal terkirim (tanpa .Error())
+		_ = a.cacheRepo.DeleteResetToken(ctx, token)
+		return errors.New("gagal mengirimkan tautan ke email Anda")
 	}
 
 	return nil
 }
 
 func (a *AuthService) VerifyToken(ctx context.Context, token string) error {
+	// Ambil User ID dari Redis berdasarkan token string
 	userID, err := a.cacheRepo.GetUserIDByToken(ctx, token)
 	if err != nil {
-		return err
+		return errors.New("tautan verifikasi tidak valid")
 	}
 	if userID == 0 {
-		return errors.New("token sudah kedaluwarsa atau tidak valid")
+		return errors.New("tautan verifikasi sudah kedaluwarsa")
 	}
 	return nil
 }
@@ -169,21 +197,16 @@ func (a *AuthService) VerifyToken(ctx context.Context, token string) error {
 func (a *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error {
 	userID, err := a.cacheRepo.GetUserIDByToken(ctx, req.Token)
 	if err != nil || userID == 0 {
-		return errors.New("token tidak valid atau sudah kedaluwarsa")
+		return errors.New("sesi pemulihan tidak valid atau sudah kedaluwarsa")
 	}
 
 	var hc pkg.HashConfig
 	hc.UseRecommended()
 	hashedPwd := hc.GenHash(req.PasswordBaru)
-	// // 2. Hash password baru
-	// hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.PasswordBaru), bcrypt.DefaultCost)
-	// if err != nil {
-	// 	return err
-	// }
 
 	err = a.authRepo.UpdatePassword(ctx, userID, hashedPwd)
 	if err != nil {
-		return err
+		return errors.New("gagal memperbarui kata sandi di database")
 	}
 
 	_ = a.cacheRepo.DeleteResetToken(ctx, req.Token)
