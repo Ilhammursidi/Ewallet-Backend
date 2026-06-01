@@ -29,7 +29,8 @@ func NewUserService(userRepo *repository.UserRepository, rdb *redis.Client) *Use
 }
 
 func (u *UserService) GetUserProfile(ctx context.Context, id int) (dto.User, error) {
-	rkey := "ilhammursidi:profile:" + string(rune(id))
+	rkey := fmt.Sprintf("ilhammursidi:profile:%d", id)
+	log.Println("gpp kok:", rkey)
 	cache, err := u.rdb.Get(ctx, rkey).Result()
 	if err == nil {
 		var cachedProfile dto.User
@@ -90,17 +91,20 @@ func (u *UserService) EditProfile(ctx context.Context, id int, req dto.EditProfi
 	}
 	var fullname, phone, photo string
 
-	if req.Fullname != nil {
+	if user.Fullname != nil {
 		fullname = *user.Fullname
 	}
 
-	if req.Phone_number != nil {
+	if user.Phone_number != nil {
 		phone = *user.Phone_number
 	}
 
-	if req.Photo_path != nil {
+	if user.Photo_path != nil {
 		photo = *user.Photo_path
 	}
+
+	rkey := fmt.Sprintf("ilhammursidi:profile:%d", id)
+	_ = u.rdb.Del(ctx, rkey).Err()
 
 	return dto.EditProfileResponse{
 		Fullname:     fullname,
@@ -115,14 +119,26 @@ func (u *UserService) EditPin(ctx context.Context, id int, req dto.EditUserPinRe
 }
 
 func (u *UserService) EditPassword(ctx context.Context, id int, req dto.EditPasswordRequest) error {
-	if req.NewPassword != req.ConfrimPassword {
-		return errors.New("passwords are not the same")
+	currentUser, err := u.userRepo.GetUserByIdUser(ctx, id)
+	if err != nil {
+		return errors.New("user not found")
 	}
+	log.Println("apakah cocok", currentUser.Password)
 
 	var hc pkg.HashConfig
 	hc.UseRecommended()
-	hashedPassword := hc.GenHash(req.NewPassword)
 
+	err = hc.Compare(req.OldPassword, currentUser.Password)
+	if err != nil {
+		return errors.New("old password is wrong")
+	}
+
+	err = hc.Compare(req.NewPassword, currentUser.Password)
+	if err == nil {
+		return errors.New("The new password cannot be the same as the old password")
+	}
+
+	hashedPassword := hc.GenHash(req.NewPassword)
 	return u.userRepo.EditPassword(ctx, id, &hashedPassword)
 }
 
