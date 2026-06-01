@@ -218,24 +218,56 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			t.created_at,
 			COALESCE(pm.payment_name, '')       AS payment_method_name,
 			w_receiver.user_id                  AS receiver_id,
-			COALESCE(u_receiver.fullname, '')   AS receiver_name,
-			COALESCE(u_sender.fullname, '')     AS sender_name,
-			COALESCE(u_receiver.phone_number, '') AS phone_number
+			
+			-- KUNCI PERBAIKAN LOGIKA NAMA & FOTO DINAMIS
+			CASE 
+				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.fullname, '')
+				ELSE COALESCE(u_receiver.fullname, '')
+			END AS receiver_name,
+			
+			CASE 
+				WHEN t.type = 'TOPUP' THEN 'Sistem / Merchant'
+				ELSE COALESCE(u_sender.fullname, '')
+			END AS sender_name,
+			
+			CASE 
+				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.photo_path, '')
+				ELSE COALESCE(u_receiver.photo_path, '')
+			END AS receiver_photo,
+			
+			CASE 
+				WHEN t.type = 'TOPUP' THEN ''
+				ELSE COALESCE(u_sender.photo_path, '')
+			END AS sender_photo,
+			
+			CASE 
+				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.phone_number, '')
+				ELSE COALESCE(u_receiver.phone_number, '')
+			END AS phone_number
+
 		FROM transactions t
+		-- Relasi Jalur TOPUP
 		LEFT JOIN topup_details tp      ON t.id = tp.transaction_id
 		LEFT JOIN payment_methods pm    ON tp.payment_method_id = pm.id
+		LEFT JOIN wallet w_topup        ON tp.wallet_id = w_topup.id -- Tambahan join wallet untuk topup
+		LEFT JOIN users u_topup         ON w_topup.user_id = u_topup.id
+		
+		-- Relasi Jalur TRANSFER
 		LEFT JOIN transfer_details trd  ON t.id = trd.transaction_id
 		LEFT JOIN wallet w_receiver     ON trd.receiver_wallet_id = w_receiver.id
 		LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
 		LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
 		LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
-		WHERE (w_receiver.user_id = $1 OR w_sender.user_id = $1 OR tp.wallet_id = $1)
+		
+		-- PERBAIKAN KLAUSA WHERE (Mencocokkan user_id, bukan wallet_id)
+		WHERE (w_receiver.user_id = $1 OR w_sender.user_id = $1 OR w_topup.user_id = $1)
 		  AND (
 			$2 = '' OR
-			LOWER(u_receiver.fullname) LIKE '%' || LOWER($2) || '%' OR
-			LOWER(u_sender.fullname)   LIKE '%' || LOWER($2) || '%' OR
+			LOWER(u_receiver.fullname)   LIKE '%' || LOWER($2) || '%' OR
+			LOWER(u_sender.fullname)     LIKE '%' || LOWER($2) || '%' OR
+			LOWER(u_topup.fullname)      LIKE '%' || LOWER($2) || '%' OR
 			LOWER(u_receiver.phone_number) LIKE '%' || LOWER($2) || '%' OR
-			LOWER(u_sender.phone_number) LIKE '%' || LOWER($2) || '%'
+			LOWER(u_sender.phone_number)   LIKE '%' || LOWER($2) || '%'
 		  )
 		ORDER BY t.created_at DESC
 		LIMIT $3 OFFSET $4`
@@ -259,6 +291,8 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			&t.ReceiverID,
 			&t.ReceiverName,
 			&t.SenderName,
+			&t.ReceiverPhoto,
+			&t.SenderPhoto,
 			&t.Phone,
 		); err != nil {
 			log.Println("GetTransactionHistory scan error:", err)
@@ -282,4 +316,12 @@ func (u *UserRepository) GetAllTransactionId(ctx context.Context, id int) (int, 
 		return 0, err
 	}
 	return count, nil
+}
+func (u *UserRepository) GetUserByIdUser(ctx context.Context, userId int) (model.User, error) {
+	sql := `SELECT id, password FROM users WHERE id = $1;`
+	var user model.User
+	if err := u.db.QueryRow(ctx, sql, userId).Scan(&user.Id, &user.Password); err != nil {
+		return model.User{}, err
+	}
+	return user, nil
 }
