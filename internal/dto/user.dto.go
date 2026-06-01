@@ -14,9 +14,9 @@ type CashFlow struct {
 
 // @name EditProfileRequest
 type EditProfileRequest struct {
-	Fullname     *string               `form:"fullname"`
-	Phone_number *string               `form:"phone"`
-	Photo_path   *multipart.FileHeader `form:"photo" binding:"omitempty"`
+	Fullname     *string              `form:"fullname"`
+	Phone_number *string              `form:"phone"`
+	Photo_path   multipart.FileHeader `form:"photo" binding:"omitempty"`
 }
 
 // @name EditProfileResponse
@@ -36,9 +36,8 @@ type EditUserPinRequest struct {
 
 // @name EditPasswordRequest
 type EditPasswordRequest struct {
-	OldPassword     string `json:"oldpassword" binding:"required,min=7"`
-	NewPassword     string `json:"newpassword" binding:"required,min=7"`
-	ConfrimPassword string `json:"confirm_password" binding:"required,min=7"`
+	OldPassword string `json:"old_password" binding:"required,min=7"`
+	NewPassword string `json:"new_password" binding:"required,min=7"`
 }
 
 // @name CheckPinResponse
@@ -105,6 +104,8 @@ type TransactionHistoryDTO struct {
 	ReceiverID        *int      `json:"receiver_id"`
 	ReceiverName      string    `json:"receiver_name"`
 	SenderName        string    `json:"sender_name"`
+	ReceiverPhoto     string    `json:"receiver_photo"`
+	SenderPhoto       string    `json:"sender_photo"`
 	Phone             string    `json:"phone_number"`
 	TotalCount        int       `json:"total_count"`
 }
