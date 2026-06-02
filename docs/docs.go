@@ -603,7 +603,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Profile photo (jpg, jpeg, png, webp, max 2MB)",
+                        "description": "Profile photo (jpg, jpeg, png, max 2MB)",
                         "name": "photo",
                         "in": "formData"
                     }
@@ -845,20 +845,15 @@ const docTemplate = `{
         "dto.EditPasswordRequest": {
             "type": "object",
             "required": [
-                "confirm_password",
-                "newpassword",
-                "oldpassword"
+                "new_password",
+                "old_password"
             ],
             "properties": {
-                "confirm_password": {
+                "new_password": {
                     "type": "string",
                     "minLength": 7
                 },
-                "newpassword": {
-                    "type": "string",
-                    "minLength": 7
-                },
-                "oldpassword": {
+                "old_password": {
                     "type": "string",
                     "minLength": 7
                 }
@@ -867,14 +862,10 @@ const docTemplate = `{
         "dto.EditUserPinRequest": {
             "type": "object",
             "required": [
-                "confirm_pin",
                 "newpin",
                 "oldpin"
             ],
             "properties": {
-                "confirm_pin": {
-                    "type": "string"
-                },
                 "newpin": {
                     "type": "string"
                 },
@@ -927,6 +918,9 @@ const docTemplate = `{
                 "payment_method_name": {
                     "type": "string"
                 },
+                "phone_number": {
+                    "type": "string"
+                },
                 "receiver_name": {
                     "type": "string"
                 },
@@ -968,11 +962,11 @@ const docTemplate = `{
         "dto.ResetPasswordRequest": {
             "type": "object",
             "required": [
-                "password_baru",
+                "password",
                 "token"
             ],
             "properties": {
-                "password_baru": {
+                "password": {
                     "type": "string",
                     "minLength": 6,
                     "example": "rahasia123"

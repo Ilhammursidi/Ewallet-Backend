@@ -1,10 +1,5 @@
 tmp
-docs
-.air.toml
-.env
-.env.*
 .env.migration
 .git
 .gitignore
-Makefile
 *.md

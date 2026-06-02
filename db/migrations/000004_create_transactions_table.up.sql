@@ -1,3 +1,10 @@
+INSERT INTO payment_methods (payment_name) VALUES
+('Bank Rakyat Indonesia'),
+('Dana'),
+('Bank Central Asia'),
+('Gopay'),
+('Ovo');
+
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
     sender_wallet_id INT,
@@ -9,7 +16,6 @@ CREATE TABLE transactions (
     created_at TIMESTAMPTZ  DEFAULT NOW(),
     updated_at TIMESTAMPTZ,
     FOREIGN KEY (sender_wallet_id) REFERENCES wallet(id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (receiver_wallet_id) REFERENCES wallet(id),
     FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id)
 );

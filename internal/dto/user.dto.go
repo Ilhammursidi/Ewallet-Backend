@@ -29,9 +29,8 @@ type EditProfileResponse struct {
 
 // @name EditUserPinRequest
 type EditUserPinRequest struct {
-	OldPin     string `json:"oldpin" binding:"required,len=6"`
-	NewPin     string `json:"newpin" binding:"required,len=6"`
-	ConfirmPin string `json:"confirm_pin" binding:"required,len=6"`
+	OldPin string `json:"oldpin" binding:"required,len=6"`
+	NewPin string `json:"newpin" binding:"required,len=6"`
 }
 
 // @name EditPasswordRequest

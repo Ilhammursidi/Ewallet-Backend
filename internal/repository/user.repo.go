@@ -109,94 +109,92 @@ func (u *UserRepository) CheckPin(ctx context.Context, id int) (*string, error) 
 	}
 	return user, nil
 }
+
 func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timePeriod string) ([]dto.TransactionReportDTO, error) {
-	var sql string
-
-	switch timePeriod {
-	case "week":
-		sql = `
+	queries := map[string]string{
+		"week": `
 			WITH date_series AS (
 				SELECT generate_series(
-					CURRENT_DATE - INTERVAL '6 days',
-					CURRENT_DATE,
+					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE - INTERVAL '6 days',
+					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
 					INTERVAL '1 day'
 				)::DATE AS period
 			)
-			SELECT 
+			SELECT
 				ds.period,
 				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
 			LEFT JOIN transactions t
 				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
 				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
 			GROUP BY ds.period
-			ORDER BY ds.period ASC`
+			ORDER BY ds.period ASC`,
 
-	case "month":
-		sql = `
+		"month": `
 			WITH date_series AS (
 				SELECT generate_series(
-					DATE_TRUNC('month', CURRENT_DATE)::DATE,
-					(DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::DATE,
+					DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
+					(DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '1 month - 1 day')::DATE,
 					INTERVAL '1 day'
 				)::DATE AS period
 			)
-			SELECT 
+			SELECT
 				ds.period,
 				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
 			LEFT JOIN transactions t
 				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
 				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
 			GROUP BY ds.period
-			ORDER BY ds.period ASC`
+			ORDER BY ds.period ASC`,
 
-	case "year":
-		sql = `
+		"year": `
 			WITH date_series AS (
 				SELECT generate_series(
-					DATE_TRUNC('year', CURRENT_DATE)::DATE,
-					(DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '11 months')::DATE,
+					DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
+					(DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '11 months')::DATE,
 					INTERVAL '1 month'
 				)::DATE AS period
 			)
-			SELECT 
+			SELECT
 				ds.period,
 				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
 			LEFT JOIN transactions t
 				ON DATE_TRUNC('month', t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
 				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
 			GROUP BY ds.period
-			ORDER BY ds.period ASC`
-
-	default:
-		return nil, fmt.Errorf("invalid period: %s (week/month/year)", timePeriod)
+			ORDER BY ds.period ASC`,
 	}
 
-	rows, err := u.db.Query(ctx, sql, id)
+	query, ok := queries[timePeriod]
+	if !ok {
+		return nil, fmt.Errorf("GetTransactionReport: invalid period %q, valid values: week, month, year", timePeriod)
+	}
+
+	rows, err := u.db.Query(ctx, query, id)
 	if err != nil {
-		return nil, fmt.Errorf("GetTransactionReport: %w", err)
+		return nil, fmt.Errorf("GetTransactionReport: query failed: %w", err)
 	}
 	defer rows.Close()
 
-	var data []dto.TransactionReportDTO
+	results := make([]dto.TransactionReportDTO, 0)
 	for rows.Next() {
 		var report dto.TransactionReportDTO
 		if err := rows.Scan(&report.Period, &report.Income, &report.Expense); err != nil {
-			return nil, fmt.Errorf("GetTransactionReport scan: %w", err)
+			return nil, fmt.Errorf("GetTransactionReport: scan failed: %w", err)
 		}
-		data = append(data, report)
+		results = append(results, report)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("GetTransactionReport rows: %w", err)
+		return nil, fmt.Errorf("GetTransactionReport: rows error: %w", err)
 	}
 
-	return data, nil
+	return results, nil
 }
 
 func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req dto.TransactionHistoryRequest) ([]dto.TransactionHistoryDTO, error) {
@@ -219,7 +217,6 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			COALESCE(pm.payment_name, '')       AS payment_method_name,
 			w_receiver.user_id                  AS receiver_id,
 			
-			-- KUNCI PERBAIKAN LOGIKA NAMA & FOTO DINAMIS
 			CASE 
 				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.fullname, '')
 				ELSE COALESCE(u_receiver.fullname, '')
@@ -243,23 +240,21 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			CASE 
 				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.phone_number, '')
 				ELSE COALESCE(u_receiver.phone_number, '')
-			END AS phone_number
+			END AS phone_number,
+			COUNT(*) OVER() AS total_count
 
 		FROM transactions t
-		-- Relasi Jalur TOPUP
 		LEFT JOIN topup_details tp      ON t.id = tp.transaction_id
 		LEFT JOIN payment_methods pm    ON tp.payment_method_id = pm.id
-		LEFT JOIN wallet w_topup        ON tp.wallet_id = w_topup.id -- Tambahan join wallet untuk topup
+		LEFT JOIN wallet w_topup        ON tp.wallet_id = w_topup.id
 		LEFT JOIN users u_topup         ON w_topup.user_id = u_topup.id
 		
-		-- Relasi Jalur TRANSFER
 		LEFT JOIN transfer_details trd  ON t.id = trd.transaction_id
 		LEFT JOIN wallet w_receiver     ON trd.receiver_wallet_id = w_receiver.id
 		LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
 		LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
 		LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
 		
-		-- PERBAIKAN KLAUSA WHERE (Mencocokkan user_id, bukan wallet_id)
 		WHERE (w_receiver.user_id = $1 OR w_sender.user_id = $1 OR w_topup.user_id = $1)
 		  AND (
 			$2 = '' OR
@@ -294,6 +289,7 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			&t.ReceiverPhoto,
 			&t.SenderPhoto,
 			&t.Phone,
+			&t.TotalCount,
 		); err != nil {
 			log.Println("GetTransactionHistory scan error:", err)
 			return nil, fmt.Errorf("GetTransactionHistory scan: %w", err)

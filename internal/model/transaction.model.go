@@ -1,8 +1,8 @@
 package model
 
 type Receiver struct {
-	Id          int
-	Photo       *string
-	Receiver    *string
-	PhoneNumber *string
+	Id          int     `db:"id"`
+	Photo       *string `db:"photo"`
+	Receiver    *string `db:"receiver"`
+	PhoneNumber *string `db:"phone"`
 }

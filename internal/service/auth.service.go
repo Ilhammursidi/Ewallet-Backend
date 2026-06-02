@@ -138,27 +138,22 @@ func (a *AuthService) LogoutUser(ctx context.Context, token string) error {
 }
 
 func (a *AuthService) RequestReset(ctx context.Context, req dto.ForgotPasswordRequest) error {
-	// 1. Validasi apakah user terdaftar di database
 	user, err := a.authRepo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return errors.New("email tidak terdaftar atau bermasalah")
 	}
 
-	// 2. Buat token random yang aman sepanjang 32 karakter hex
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		return errors.New("gagal membuat token keamanan")
 	}
 	token := hex.EncodeToString(b)
 
-	// 3. AMAN: Simpan ke Redis TERLEBIH DAHULU sebelum kirim email
-	// Value yang disimpan adalah User ID agar mempermudah proses update password nanti
 	err = a.cacheRepo.SaveResetToken(ctx, token, user.Id, 15*time.Minute)
 	if err != nil {
 		return errors.New("gagal membuat sesi pemulihan di server")
 	}
 
-	// 4. Muat berkas config & inisialisasi Gomail Mailer
 	cfg := config.LoadConfig()
 	mailer := pkg.NewGomailMailer(
 		cfg.SMTPHost,
@@ -168,13 +163,10 @@ func (a *AuthService) RequestReset(ctx context.Context, req dto.ForgotPasswordRe
 		cfg.SMTPFromEmail,
 	)
 
-	// Sesuaikan dengan path VerifyTokenPage pada React Router Anda: /auth/verify?token=XYZ
 	resetlink := fmt.Sprintf("%s/auth/verify-token?token=%s", cfg.FrontendURL, token)
 
-	// 5. Jalankan pengiriman email pemulihan
 	err = mailer.SendResetLink(req.Email, resetlink)
 	if err != nil {
-		// Perbaikan: Hapus token dari redis jika email gagal terkirim (tanpa .Error())
 		_ = a.cacheRepo.DeleteResetToken(ctx, token)
 		return errors.New("gagal mengirimkan tautan ke email Anda")
 	}
@@ -183,7 +175,6 @@ func (a *AuthService) RequestReset(ctx context.Context, req dto.ForgotPasswordRe
 }
 
 func (a *AuthService) VerifyToken(ctx context.Context, token string) error {
-	// Ambil User ID dari Redis berdasarkan token string
 	userID, err := a.cacheRepo.GetUserIDByToken(ctx, token)
 	if err != nil {
 		return errors.New("tautan verifikasi tidak valid")

@@ -41,5 +41,5 @@ type ForgotPasswordRequest struct {
 // Input saat user memasukkan password baru
 type ResetPasswordRequest struct {
 	Token        string `json:"token" binding:"required"`
-	PasswordBaru string `json:"password_baru" binding:"required,min=6" example:"rahasia123"`
+	PasswordBaru string `json:"password" binding:"required,min=6" example:"rahasia123"`
 }

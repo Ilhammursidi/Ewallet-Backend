@@ -1,4 +1,4 @@
-include ./.env.migration
+include ./.env
 
 MIGRATION_PATH=db/migrations
 SEEDER_PATH=db/seeder
