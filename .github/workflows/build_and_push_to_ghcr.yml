@@ -4,19 +4,13 @@ on:
         branches:
             - master
 jobs:
-    say_hello:
+    build_and_publish:
         runs-on: ubuntu-latest
         steps:
-            - name: sayHello
-              run: echo "Hello"
-# job2:
-#     build_and_publish:
-#         runs-on: ubuntu-latest
-#         steps:
-#             - name: Checkout Repository
-#               uses: actions/checkout@v4
-#             - name: Push to GHCR
-#               uses: macbre/push-to-ghcr@master
-#               with:
-#                 image_name: ${{ github.repository }}
-#                 github_token: ${{ secrets.GITHUB_TOKEN }} 
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+            - name: Push to GHCR
+              uses: macbre/push-to-ghcr@master
+              with:
+                image_name: ${{ github.repository }}
+                github_token: ${{ secrets.GITHUB_TOKEN }} 
