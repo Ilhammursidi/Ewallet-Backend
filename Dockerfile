@@ -1,4 +1,4 @@
-FROM golang:tip-alpine3.23 AS builder
+FROM golang:1.25-alpine3.22 AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/...
+RUN go build -o main ./cmd
 
 FROM alpine:3.21
 
