@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o main ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
 
 FROM alpine:3.21
 
@@ -17,7 +17,7 @@ RUN apk --no-cache add ca-certificates tzdata
 
 COPY --from=builder /app/main .
 
-COPY --from=builder /app/public ./public
+RUN mkdir -p /app/public
 
 EXPOSE 8081
 
