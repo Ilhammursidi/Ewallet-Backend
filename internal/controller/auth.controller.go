@@ -35,7 +35,7 @@ func NewAuthController(authService *service.AuthService) *AuthController {
 //	@Failure		500	{object}	dto.ErrorResponse
 //	@Router			/auth/register [post]
 func (a *AuthController) Register(ctx *gin.Context) {
-	var body dto.NewUser
+	var body dto.RegisterDto
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
 		log.Println("Error: ", err.Error())
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
@@ -49,9 +49,9 @@ func (a *AuthController) Register(ctx *gin.Context) {
 	if err != nil {
 		log.Println("Error: ", err.Error())
 		ctx.JSON(http.StatusConflict, dto.ErrorResponse{
-			Message: "Error",
+			Message: "Email already exist",
 			Success: false,
-			Error:   "Email already registered",
+			Error:   "Conflict",
 		})
 		return
 	}
@@ -216,15 +216,18 @@ func (a *AuthController) Logout(ctx *gin.Context) {
 // @Success      200 {object} map[string]string "Message: Instruksi terkirim"
 // @Failure      400 {object} map[string]string "Error message"
 // @Router       /auth/forgot-password [post]
-func (ctrl *AuthController) RequestForgotPassword(c *gin.Context) {
+func (a *AuthController) RequestForgotPassword(c *gin.Context) {
 	var req dto.ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[DEBUG] Gagal mengurai data JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("[DEBUG] Data email berhasil diterima: %s", req.Email)
 
-	err := ctrl.authService.RequestReset(c.Request.Context(), req)
+	err := a.authService.RequestReset(c.Request.Context(), req)
 	if err != nil {
+		log.Printf("[DEBUG] Error pada layer service: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -243,14 +246,14 @@ func (ctrl *AuthController) RequestForgotPassword(c *gin.Context) {
 // @Success      200 {object} map[string]string "Message: Token valid"
 // @Failure      400 {object} map[string]string "Error message"
 // @Router       /auth/verify-reset-token [post]
-func (ctrl *AuthController) VerifyResetToken(c *gin.Context) {
+func (a *AuthController) VerifyResetToken(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "token dibutuhkan"})
 		return
 	}
 
-	err := ctrl.authService.VerifyToken(c.Request.Context(), token)
+	err := a.authService.VerifyToken(c.Request.Context(), token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -269,14 +272,14 @@ func (ctrl *AuthController) VerifyResetToken(c *gin.Context) {
 // @Success      200 {object} map[string]string "Message: Change Password successfull"
 // @Failure      400 {object} map[string]string "Error message"
 // @Router       /auth/reset-password [post]
-func (ctrl *AuthController) ResetPassword(c *gin.Context) {
+func (a *AuthController) ResetPassword(c *gin.Context) {
 	var req dto.ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := ctrl.authService.ResetPassword(c.Request.Context(), req)
+	err := a.authService.ResetPassword(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
