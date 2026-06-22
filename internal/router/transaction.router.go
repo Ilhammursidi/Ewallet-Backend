@@ -13,9 +13,10 @@ import (
 func RegisterTransactionRouter(router *gin.Engine, db *pgxpool.Pool, rdb *redis.Client) {
 
 	transactionRepo := repository.NewTransactionRepo(db)
+	userRepo := repository.NewUserRepository(db)
 
 	transactionService := service.NewTransactionService(transactionRepo, db, rdb)
-	transactionController := controller.NewTransactionController(transactionService)
+	transactionController := controller.NewTransactionController(transactionService, userRepo)
 
 	transactionRouter := router.Group("/transaction", middleware.Blacklist(rdb), middleware.VerifyToken)
 
