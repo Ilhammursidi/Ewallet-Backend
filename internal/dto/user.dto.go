@@ -46,6 +46,7 @@ type CheckPinResponse struct {
 
 // @name UserProfileResponse
 type UserProfileResponse struct {
+	Id           int    `json:"id"`
 	Fullname     string `json:"fullname"`
 	Email        string `json:"email"`
 	Phone_number string `json:"phone"`
@@ -102,9 +103,13 @@ type TransactionHistoryDTO struct {
 	PaymentMethodName string    `json:"payment_method_name"`
 	ReceiverID        *int      `json:"receiver_id"`
 	ReceiverName      string    `json:"receiver_name"`
+	ReceiverEmail     string    `json:"receiver_email"`
+	SenderID          *int      `json:"sender_id"`
 	SenderName        string    `json:"sender_name"`
+	SenderEmail       string    `json:"sender_email"`
 	ReceiverPhoto     string    `json:"receiver_photo"`
 	SenderPhoto       string    `json:"sender_photo"`
 	Phone             string    `json:"phone_number"`
+	SenderPhone       string    `json:"sender_number"`
 	TotalCount        int       `json:"total_count"`
 }
