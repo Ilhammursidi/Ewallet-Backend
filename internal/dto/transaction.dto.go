@@ -42,20 +42,20 @@ const (
 )
 
 type CreateTransactionParams struct {
-	UserID           int
-	ReceiverWalletID int
-	PaymentMethodID  int
-	Amount           int
+	UserID           int `json:"user_id"`
+	ReceiverWalletID int `json:"receiver_wallet_id"`
+	PaymentMethodID  int `json:"payment_method_id"`
+	Amount           int `json:"amount"`
 }
 
 type CreateTopUpDetailParams struct {
-	TransactionID   int
-	WalletID        int
-	PaymentMethodID int
-	OrderAmount     int
-	TaxAmount       int
-	DeliveryFee     int
-	TotalAmount     int
+	TransactionID   int `json:"transaction_id"`
+	WalletID        int `json:"wallet_id"`
+	PaymentMethodID int `json:"payment_method_id"`
+	OrderAmount     int `json:"order_amount"`
+	TaxAmount       int `json:"tax_amount"`
+	DeliveryFee     int `json:"delivery_fee"`
+	TotalAmount     int `json:"total_amount"`
 }
 
 type TopUpHTTPRequest struct {
@@ -82,10 +82,10 @@ type TopUpResponse struct {
 }
 
 type CreateTransferParams struct {
-	UserID           int
-	SenderWalletID   int
-	ReceiverWalletID int
-	Amount           int
+	UserID           int `json:"user_id"`
+	SenderWalletID   int `json:"sender_wallet_id"`
+	ReceiverWalletID int `json:"receiver_wallet_id"`
+	Amount           int `json:"amount"`
 }
 
 type TransferResponse struct {
@@ -95,12 +95,13 @@ type TransferResponse struct {
 }
 
 type TransferHTTPRequest struct {
-	ReceiverID int `json:"receiver_id" validate:"required"`
-	Amount     int `json:"amount"      validate:"required,min=1"`
+	ReceiverID int    `json:"receiver_id" validate:"required"`
+	Amount     int    `json:"amount"      validate:"required,min=1"`
+	Pin        string `json:"pin" validate:"required,len=6"`
 }
 
 type TransferServiceRequest struct {
-	UserID     int
-	ReceiverID int
-	Amount     int
+	UserID     int `json:"user_id"`
+	ReceiverID int `json:"receiver_id"`
+	Amount     int `json:"amount"`
 }
