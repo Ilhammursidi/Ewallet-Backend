@@ -38,14 +38,14 @@ func (u *UserRepository) GetMoneyAccountInfo(ctx context.Context, id int) (model
             w.balance AS balance,
             SUM(
                 CASE
-                    WHEN t.type = 'TRANSFER' AND t.receiver_wallet_id = $1 AND t.status = 'SUCCESS'
+                    WHEN t.type = 'TRANSFER' AND t.receiver_wallet_id = w.id AND t.status = 'SUCCESS'
                     THEN t.amount
                     ELSE 0
                 END
             ) AS income,
             SUM(
                 CASE
-                    WHEN t.type = 'TRANSFER' AND t.sender_wallet_id = $1 AND t.status = 'SUCCESS'
+                    WHEN t.type = 'TRANSFER' AND t.sender_wallet_id = w.id AND t.status = 'SUCCESS'
                     THEN t.amount
                     ELSE 0
                 END
@@ -119,15 +119,19 @@ func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timeP
 					(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::DATE,
 					INTERVAL '1 day'
 				)::DATE AS period
+			),
+			user_wallet AS (
+				SELECT id AS wallet_id FROM wallet WHERE user_id = $1 LIMIT 1
 			)
 			SELECT
 				ds.period,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = uw.wallet_id THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = uw.wallet_id THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
+			CROSS JOIN user_wallet uw
 			LEFT JOIN transactions t
 				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
-				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
+				AND (t.receiver_wallet_id = uw.wallet_id OR t.sender_wallet_id = uw.wallet_id)
 			GROUP BY ds.period
 			ORDER BY ds.period ASC`,
 
@@ -138,15 +142,19 @@ func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timeP
 					(DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '1 month - 1 day')::DATE,
 					INTERVAL '1 day'
 				)::DATE AS period
+			),
+			user_wallet AS (
+				SELECT id AS wallet_id FROM wallet WHERE user_id = $1 LIMIT 1
 			)
 			SELECT
 				ds.period,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = uw.wallet_id THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = uw.wallet_id THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
+			CROSS JOIN user_wallet uw
 			LEFT JOIN transactions t
 				ON (t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
-				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
+				AND (t.receiver_wallet_id = uw.wallet_id OR t.sender_wallet_id = uw.wallet_id)
 			GROUP BY ds.period
 			ORDER BY ds.period ASC`,
 
@@ -157,15 +165,19 @@ func (u *UserRepository) GetTransactionReport(ctx context.Context, id int, timeP
 					(DATE_TRUNC('year', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') + INTERVAL '11 months')::DATE,
 					INTERVAL '1 month'
 				)::DATE AS period
+			),
+			user_wallet AS (
+				SELECT id AS wallet_id FROM wallet WHERE user_id = $1 LIMIT 1
 			)
 			SELECT
 				ds.period,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = $1 THEN t.amount ELSE 0 END), 0) AS total_income,
-				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = $1 THEN t.amount ELSE 0 END), 0) AS total_expense
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.receiver_wallet_id = uw.wallet_id THEN t.amount ELSE 0 END), 0) AS total_income,
+				COALESCE(SUM(CASE WHEN t.type = 'TRANSFER' AND t.status = 'SUCCESS' AND t.sender_wallet_id   = uw.wallet_id THEN t.amount ELSE 0 END), 0) AS total_expense
 			FROM date_series ds
+			CROSS JOIN user_wallet uw
 			LEFT JOIN transactions t
 				ON DATE_TRUNC('month', t.created_at AT TIME ZONE 'Asia/Jakarta')::DATE = ds.period
-				AND (t.receiver_wallet_id = $1 OR t.sender_wallet_id = $1)
+				AND (t.receiver_wallet_id = uw.wallet_id OR t.sender_wallet_id = uw.wallet_id)
 			GROUP BY ds.period
 			ORDER BY ds.period ASC`,
 	}
@@ -208,64 +220,86 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 	offset := (page - 1) * limit
 
 	query := `
-		SELECT 
-			t.id                                AS transaction_id,
-			t.amount,
-			t.type,
-			t.status,
-			t.created_at,
-			COALESCE(pm.payment_name, '')       AS payment_method_name,
-			w_receiver.user_id                  AS receiver_id,
-			
-			CASE 
-				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.fullname, '')
-				ELSE COALESCE(u_receiver.fullname, '')
-			END AS receiver_name,
-			
-			CASE 
-				WHEN t.type = 'TOPUP' THEN 'Sistem / Merchant'
-				ELSE COALESCE(u_sender.fullname, '')
-			END AS sender_name,
-			
-			CASE 
-				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.photo_path, '')
-				ELSE COALESCE(u_receiver.photo_path, '')
-			END AS receiver_photo,
-			
-			CASE 
-				WHEN t.type = 'TOPUP' THEN ''
-				ELSE COALESCE(u_sender.photo_path, '')
-			END AS sender_photo,
-			
-			CASE 
-				WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.phone_number, '')
-				ELSE COALESCE(u_receiver.phone_number, '')
-			END AS phone_number,
-			COUNT(*) OVER() AS total_count
+        SELECT 
+            t.id                                AS transaction_id,
+            t.amount,
+            t.type,
+            t.status,
+            t.created_at,
+            COALESCE(pm.payment_name, '')       AS payment_method_name,
+            w_receiver.user_id                  AS receiver_id,
+            w_sender.user_id                    AS sender_id,
+            
+            CASE 
+                WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.fullname, '')
+                ELSE COALESCE(u_receiver.fullname, '')
+            END AS receiver_name,
+            
+            CASE 
+                WHEN t.type = 'TOPUP' THEN 'Sistem / Merchant'
+                ELSE COALESCE(u_sender.fullname, '')
+            END AS sender_name,
+            
+            -- 🛠️ Added Email Fetching with Case Fallbacks
+            CASE 
+                WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.email, '')
+                ELSE COALESCE(u_receiver.email, '')
+            END AS receiver_email,
 
-		FROM transactions t
-		LEFT JOIN topup_details tp      ON t.id = tp.transaction_id
-		LEFT JOIN payment_methods pm    ON tp.payment_method_id = pm.id
-		LEFT JOIN wallet w_topup        ON tp.wallet_id = w_topup.id
-		LEFT JOIN users u_topup         ON w_topup.user_id = u_topup.id
-		
-		LEFT JOIN transfer_details trd  ON t.id = trd.transaction_id
-		LEFT JOIN wallet w_receiver     ON trd.receiver_wallet_id = w_receiver.id
-		LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
-		LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
-		LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
-		
-		WHERE (w_receiver.user_id = $1 OR w_sender.user_id = $1 OR w_topup.user_id = $1)
-		  AND (
-			$2 = '' OR
-			LOWER(u_receiver.fullname)   LIKE '%' || LOWER($2) || '%' OR
-			LOWER(u_sender.fullname)     LIKE '%' || LOWER($2) || '%' OR
-			LOWER(u_topup.fullname)      LIKE '%' || LOWER($2) || '%' OR
-			LOWER(u_receiver.phone_number) LIKE '%' || LOWER($2) || '%' OR
-			LOWER(u_sender.phone_number)   LIKE '%' || LOWER($2) || '%'
-		  )
-		ORDER BY t.created_at DESC
-		LIMIT $3 OFFSET $4`
+            CASE 
+                WHEN t.type = 'TOPUP' THEN 'system@wallet.com' -- Fallback system automated email
+                ELSE COALESCE(u_sender.email, '')
+            END AS sender_email,
+            
+            CASE 
+                WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.photo_path, '')
+                ELSE COALESCE(u_receiver.photo_path, '')
+            END AS receiver_photo,
+            
+            CASE 
+                WHEN t.type = 'TOPUP' THEN ''
+                ELSE COALESCE(u_sender.photo_path, '')
+            END AS sender_photo,
+            
+            CASE 
+                WHEN t.type = 'TOPUP' THEN COALESCE(u_topup.phone_number, '')
+                ELSE COALESCE(u_receiver.phone_number, '')
+            END AS phone_number,
+
+            CASE 
+                WHEN t.type = 'TRANSFER' AND u_sender.id != $1 THEN COALESCE(u_sender.phone_number, '')
+                ELSE COALESCE(u_sender.phone_number, '')
+            END AS sender_number,
+            COUNT(*) OVER() AS total_count
+
+        FROM transactions t
+        LEFT JOIN topup_details tp      ON t.id = tp.transaction_id
+        LEFT JOIN payment_methods pm    ON tp.payment_method_id = pm.id
+        LEFT JOIN wallet w_topup        ON tp.wallet_id = w_topup.id
+        LEFT JOIN users u_topup         ON w_topup.user_id = u_topup.id
+        
+        LEFT JOIN transfer_details trd  ON t.id = trd.transaction_id
+        LEFT JOIN wallet w_receiver     ON trd.receiver_wallet_id = w_receiver.id
+        LEFT JOIN users u_receiver      ON w_receiver.user_id = u_receiver.id
+        LEFT JOIN wallet w_sender       ON trd.sender_wallet_id = w_sender.id
+        LEFT JOIN users u_sender        ON w_sender.user_id = u_sender.id
+        
+        WHERE (w_receiver.user_id = $1 OR w_sender.user_id = $1 OR w_topup.user_id = $1)
+          AND (
+            $2 = '' OR
+            LOWER(u_receiver.fullname)   LIKE '%' || LOWER($2) || '%' OR
+            LOWER(u_sender.fullname)     LIKE '%' || LOWER($2) || '%' OR
+            LOWER(u_topup.fullname)      LIKE '%' || LOWER($2) || '%' OR
+            LOWER(u_receiver.phone_number) LIKE '%' || LOWER($2) || '%' OR
+            LOWER(u_sender.phone_number)   LIKE '%' || LOWER($2) || '%' OR
+            LOWER(u_receiver.email)      LIKE '%' || LOWER($2) || '%' OR  
+            LOWER(u_sender.email)        LIKE '%' || LOWER($2) || '%' OR
+			LOWER(pm.payment_name)     LIKE '%' || LOWER($2) || '%' OR
+    LOWER(REPLACE(t.type::text, ' ', '')) LIKE '%' || LOWER(REPLACE($2, ' ', '')) || '%'
+
+          )
+        ORDER BY t.created_at DESC
+        LIMIT $3 OFFSET $4`
 
 	rows, err := r.db.Query(ctx, query, id, req.Search, limit, offset)
 	if err != nil {
@@ -284,11 +318,15 @@ func (r *UserRepository) GetTransactionHistory(ctx context.Context, id int, req 
 			&t.CreatedAt,
 			&t.PaymentMethodName,
 			&t.ReceiverID,
+			&t.SenderID,
 			&t.ReceiverName,
 			&t.SenderName,
+			&t.ReceiverEmail,
+			&t.SenderEmail,
 			&t.ReceiverPhoto,
 			&t.SenderPhoto,
 			&t.Phone,
+			&t.SenderPhone,
 			&t.TotalCount,
 		); err != nil {
 			log.Println("GetTransactionHistory scan error:", err)
@@ -314,9 +352,9 @@ func (u *UserRepository) GetAllTransactionId(ctx context.Context, id int) (int, 
 	return count, nil
 }
 func (u *UserRepository) GetUserByIdUser(ctx context.Context, userId int) (model.User, error) {
-	sql := `SELECT id, password FROM users WHERE id = $1;`
+	sql := `SELECT id, password, pin FROM users WHERE id = $1;`
 	var user model.User
-	if err := u.db.QueryRow(ctx, sql, userId).Scan(&user.Id, &user.Password); err != nil {
+	if err := u.db.QueryRow(ctx, sql, userId).Scan(&user.Id, &user.Password, &user.Pin); err != nil {
 		return model.User{}, err
 	}
 	return user, nil
