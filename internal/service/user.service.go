@@ -114,8 +114,32 @@ func (u *UserService) EditProfile(ctx context.Context, id int, req dto.EditProfi
 	}, nil
 }
 
-func (u *UserService) EditPin(ctx context.Context, id int, req dto.EditUserPinRequest) error {
-	return u.userRepo.EditUserPin(ctx, id, &req.NewPin)
+func (u *UserService) EditPin(
+	ctx context.Context,
+	id int,
+	req dto.EditUserPinRequest,
+) error {
+
+	user, err := u.userRepo.GetUserByIdUser(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	var hc pkg.HashConfig
+	hc.UseRecommended()
+
+	err = hc.Compare(req.OldPin, user.Pin)
+	if err != nil {
+		return errors.New("old pin invalid")
+	}
+	err = hc.Compare(req.NewPin, user.Pin)
+	if err == nil {
+		return errors.New("the new pin cannot be the same as the old pin")
+	}
+
+	hashedPin := hc.GenHash(req.NewPin)
+
+	return u.userRepo.EditUserPin(ctx, id, &hashedPin)
 }
 
 func (u *UserService) EditPassword(ctx context.Context, id int, req dto.EditPasswordRequest) error {
