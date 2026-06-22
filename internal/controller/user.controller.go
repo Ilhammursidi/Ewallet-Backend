@@ -54,6 +54,7 @@ func (u *UserController) GetProfile(ctx *gin.Context) {
 		Message: "OK",
 		Success: true,
 		Data: dto.UserProfileResponse{
+			Id:           user.Id,
 			Fullname:     user.Fullname,
 			Email:        user.Email,
 			Photo_path:   user.Photo_path,
@@ -87,6 +88,7 @@ func (u *UserController) GetDashboardInfo(ctx *gin.Context) {
 		})
 		return
 	}
+	log.Println(data)
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: "get info success",
 		Success: true,
@@ -146,6 +148,8 @@ func (u *UserController) EditUserProfile(ctx *gin.Context) {
 			".jpg":  true,
 			".jpeg": true,
 			".png":  true,
+			".webp": true,
+			".svg":  true,
 		}
 
 		if !allowedExt[ext] {
@@ -224,24 +228,24 @@ func (u *UserController) EditUserPin(ctx *gin.Context) {
 	var body dto.EditUserPinRequest
 	if err := ctx.ShouldBindWith(&body, binding.JSON); err != nil {
 		log.Println(err.Error())
-		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "internal error",
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "invalid PIN data",
 			Success: false,
-			Error:   "internal server error",
+			Error:   err.Error(),
 		})
 		return
 	}
 	if err := u.userService.EditPin(ctx.Request.Context(), claims.Id, body); err != nil {
 		log.Println(err.Error())
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "internal error",
+			Message: "Failed to edit PIN",
 			Success: false,
-			Error:   "internal server error",
+			Error:   "error",
 		})
 		return
 	}
 	ctx.JSON(http.StatusCreated, dto.Response{
-		Message: "update usersPin success",
+		Message: "update userPin success",
 		Success: true,
 		Data:    "",
 	})
@@ -343,6 +347,7 @@ func (uc *UserController) TransactionReportGraph(ctx *gin.Context) {
 		return
 	}
 
+	// log.Println(data)
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: "Transaction report retrieved successfully",
 		Success: true,
@@ -403,4 +408,8 @@ func (u *UserController) GetTransactionHistory(ctx *gin.Context) {
 	}
 
 	response.SuccessWithMetaData(ctx, 200, "Get data success", data, metaData)
+}
+
+func (u *UserController) GetPin(ctx *gin.Context) {
+
 }
