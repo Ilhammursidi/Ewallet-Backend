@@ -23,6 +23,11 @@ type NewUser struct {
 	Password string `json:"password" binding:"required,min=8" example:"ilham123"`
 }
 
+type RegisterDto struct {
+	Email    string `json:"email" binding:"required,email" example:"ilham@mail.com"`
+	Password string `json:"password" binding:"required,min=8" example:"ilham123"`
+}
+
 // @name SetPin
 type SetPin struct {
 	Pin string `json:"pin" binding:"required,len=6" example:"123456"`
