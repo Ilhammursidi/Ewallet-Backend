@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/ewallet-backend/internal/dto"
 	"github.com/ewallet-backend/internal/repository"
@@ -78,7 +79,7 @@ func (ts *TransactionService) FindReceivers(ctx context.Context, userId int, sea
 }
 
 func (ts *TransactionService) TopUp(ctx context.Context, req dto.TopUpServiceRequest) (*dto.TopUpResponse, error) {
-	totalAmount := req.OrderAmount + req.TaxAmount + req.DeliveryFee
+	totalAmount := req.OrderAmount + req.DeliveryFee
 	creditAmount := req.OrderAmount
 
 	if creditAmount <= 0 {
@@ -140,6 +141,15 @@ func (ts *TransactionService) TopUp(ctx context.Context, req dto.TopUpServiceReq
 }
 
 func (ts *TransactionService) Transfer(ctx context.Context, req dto.TransferServiceRequest) (*dto.TransferResponse, error) {
+	rateLimitKey := fmt.Sprintf("rate_limit:transfer:%d", req.UserID)
+	count, _ := ts.rdb.Incr(ctx, rateLimitKey).Result()
+	if count == 1 {
+		ts.rdb.Expire(ctx, rateLimitKey, time.Minute)
+	}
+	if count > 5 {
+		return nil, fmt.Errorf("too many transfer requests, please wait")
+	}
+
 	tx, err := ts.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
