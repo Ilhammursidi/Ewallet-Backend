@@ -39,7 +39,7 @@ func NewAuthService(authRepo *repository.AuthRepository, blacklistRepo *reposito
 	}
 }
 
-func (a *AuthService) RegisterUser(ctx context.Context, user dto.NewUser) (dto.User, error) {
+func (a *AuthService) RegisterUser(ctx context.Context, user dto.RegisterDto) (dto.User, error) {
 	rkey := "ilhammursidi:register:" + user.Email
 	cache, err := a.rdb.Get(ctx, rkey).Result()
 	log.Println("ini cache", cache)
@@ -103,11 +103,11 @@ func (a *AuthService) LoginUser(ctx context.Context, user dto.NewUser) (string, 
 		return "", err
 	}
 
-	sessionKey := "ilhammursidi:session"
-	err = a.rdb.Set(ctx, sessionKey, token, 24*time.Hour).Err()
-	if err != nil {
-		log.Println("failed to save session to redis:", err)
-	}
+	// sessionKey := "ilhammursidi:session"
+	// err = a.rdb.Set(ctx, sessionKey, token, 24*time.Hour).Err()
+	// if err != nil {
+	// 	log.Println("failed to save session to redis:", err)
+	// }
 
 	return token, nil
 }
@@ -143,6 +143,14 @@ func (a *AuthService) RequestReset(ctx context.Context, req dto.ForgotPasswordRe
 		return errors.New("email tidak terdaftar atau bermasalah")
 	}
 
+	if a.rdb == nil {
+		return fmt.Errorf("database redis belum diinisialisasi (nil client)")
+	}
+
+	if err := a.rdb.Ping(ctx).Err(); err != nil {
+		return fmt.Errorf("redis offline atau koneksi terputus: %w", err)
+	}
+
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		return errors.New("gagal membuat token keamanan")
@@ -151,6 +159,7 @@ func (a *AuthService) RequestReset(ctx context.Context, req dto.ForgotPasswordRe
 
 	err = a.cacheRepo.SaveResetToken(ctx, token, user.Id, 15*time.Minute)
 	if err != nil {
+		log.Printf("[DEBUG] Error pada service: %v", err)
 		return errors.New("gagal membuat sesi pemulihan di server")
 	}
 
