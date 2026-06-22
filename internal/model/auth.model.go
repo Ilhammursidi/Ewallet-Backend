@@ -6,7 +6,7 @@ type User struct {
 	Id           int        `db:"id"`
 	Email        string     `db:"email" example:"anjay"`
 	Password     string     `db:"password"`
-	Pin          *string    `db:"pin"`
+	Pin          string     `db:"pin"`
 	Fullname     *string    `db:"fullname"`
 	Photo_path   *string    `db:"photo"`
 	Phone_number *string    `db:"phone"`
