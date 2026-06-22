@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ewallet-backend/internal/dto"
+	"github.com/ewallet-backend/internal/repository"
 	"github.com/ewallet-backend/internal/service"
 	"github.com/ewallet-backend/pkg"
 	"github.com/gin-gonic/gin"
@@ -14,11 +15,13 @@ import (
 
 type TransactionController struct {
 	transactionService *service.TransactionService
+	userRepo           *repository.UserRepository
 }
 
-func NewTransactionController(transactionService *service.TransactionService) *TransactionController {
+func NewTransactionController(transactionService *service.TransactionService, userRepo *repository.UserRepository) *TransactionController {
 	return &TransactionController{
 		transactionService: transactionService,
+		userRepo:           userRepo,
 	}
 }
 
@@ -173,6 +176,7 @@ func (tc *TransactionController) TopUp(ctx *gin.Context) {
 // @Failure      401      {object}  dto.ErrorResponse        "Unauthorized"
 // @Failure      500      {object}  dto.ErrorResponse        "Internal server error"
 // @Router       /transaction/transfer [post]
+// controller/transaction_controller.go
 func (tc *TransactionController) Transfer(ctx *gin.Context) {
 	token, exists := ctx.Get("claims")
 	if !exists {
@@ -187,7 +191,7 @@ func (tc *TransactionController) Transfer(ctx *gin.Context) {
 	claims, ok := token.(*pkg.Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Message: "Error Uanuthorized",
+			Message: "Error Unauthorized",
 			Success: false,
 			Error:   "Unauthorized",
 		})
@@ -200,12 +204,29 @@ func (tc *TransactionController) Transfer(ctx *gin.Context) {
 		return
 	}
 
+	user, err := tc.userRepo.GetUserByIdUser(ctx.Request.Context(), claims.Id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{Message: "failed to get user"})
+		return
+	}
+
+	hashCfg := &pkg.HashConfig{}
+	hashCfg.UseRecommended()
+	if err := hashCfg.Compare(req.Pin, user.Pin); err != nil {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Unauthorized",
+			Success: false,
+			Error:   "wrong PIN",
+		})
+		return
+	}
+
 	result, err := tc.transactionService.Transfer(ctx.Request.Context(), dto.TransferServiceRequest{
 		UserID:     claims.Id,
 		ReceiverID: req.ReceiverID,
 		Amount:     req.Amount,
 	})
-
+	log.Println("receiverid", req.ReceiverID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{Message: err.Error()})
 		return
