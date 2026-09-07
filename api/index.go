@@ -16,7 +16,6 @@ func initApp() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	// CORS Middleware
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
@@ -30,20 +29,21 @@ func initApp() {
 
 	r.Use(gin.Recovery())
 
-	// Health check endpoint
+	// Health Check aman
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "success",
-			"message": "Ewallet Backend is up and running on Vercel!",
+			"message": "Ewallet Backend is online!",
 		})
 	})
 
-	// Tambahkan rute dasar atau tangani API di sini
-	r.Any("/api/*any", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "API endpoint reached successfully",
-			"path":    c.Param("any"),
-		})
+	// Contoh endpoint login & signup manual agar tidak 404/500
+	r.POST("/api/auth/login", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Login endpoint ready"})
+	})
+
+	r.POST("/api/auth/signup", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Signup endpoint ready"})
 	})
 
 	app = r
