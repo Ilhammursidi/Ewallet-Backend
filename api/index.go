@@ -18,6 +18,18 @@ func initApp() {
 	r := gin.New()
 
 	// Tambahkan middleware dasar atau langsung definisikan endpoint di sini
+	// Tambahkan middleware CORS manual di index.go untuk Vercel
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Atau ganti dengan domain frontend Vercel kamu
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Koda-X")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
 	r.Use(gin.Recovery())
 
 	// Contoh rute dasar agar backend aktif dan merespons
